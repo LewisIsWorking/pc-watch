@@ -116,18 +116,21 @@ public sealed class MainForm : Form
             _tray.Icon = _trayRenderer.Render(snapshot.TotalCpuPercent);
             _tray.Text = TrayIconRenderer.Tooltip(snapshot);
 
-            var (word, worst) = SystemHealth.Overall(SystemHealth.Assess(snapshot));
-            string power = snapshot.Power?.EstimatedSystemWatts is { } watts ? $"   ~{watts:N0} W" : "";
+            IReadOnlyList<HealthIndicator> health = SystemHealth.Assess(snapshot);
+            var (word, worst) = SystemHealth.Overall(health);
 
-            _ui.Headline.ForeColor = Theme.ForLoad(snapshot.TotalCpuPercent);
-            _ui.Headline.Text = snapshot.TotalCpuPercent is { } v
-                ? $"{v:N0}%  CPU     {word}{power}"
-                : "measuring...";
+            // ⚠️ POWER IS NOT IN THE HEADLINE. It used to be, and it inherited the headline's
+            //    severity colour - so a perfectly normal 244 W on a 5900X plus a 3080 rendered in
+            //    alarm red and read as a fault. Nothing here knows the PSU rating, so the app has no
+            //    basis on which to call any wattage bad. It belongs with the other plain facts.
+            _ui.Headline.Text = snapshot.TotalCpuPercent is { } v ? $"{v:N0}%  CPU     {word}" : "measuring...";
             _ui.Headline.ForeColor = Theme.ForSeverity(worst);
 
+            string power = snapshot.Power?.EstimatedSystemWatts is { } watts ? $"~{watts:N0} W   -   " : "";
             _ui.Subline.Text =
                 $"{snapshot.Machine.CpuName}   -   {snapshot.LogicalCores} logical cores   -   "
                 + $"RAM {snapshot.Machine.RamUsedGb:N1}/{snapshot.Machine.RamTotalGb:N1} GB   -   "
+                + power
                 + $"on {ReportRenderer.Age(snapshot.Machine.Uptime.Best)}   -   {AppVersion.Display}";
 
             _ui.LongRunning.Update(snapshot.LongLived);

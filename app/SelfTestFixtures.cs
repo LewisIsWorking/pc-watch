@@ -28,6 +28,12 @@ public static class SelfTestFixtures
             new MachineStats(clock, ramUsed, ramTotal, Uptime(uptimeDays), "Test CPU"),
             DateTime.Now, [], []);
 
+    /// <summary>A snapshot with specific disk figures, for the capacity-versus-performance cases.</summary>
+    public static Snapshot SampleWithDisk(double totalCpu, double freeGb, double totalGb) =>
+        new(totalCpu, 24, [],
+            new MachineStats(60, 10, 64, Uptime(2), "Test CPU"),
+            DateTime.Now, [], [], null, null, freeGb, totalGb);
+
     /// <summary>An uptime where the real power-on and the kernel counter agree.</summary>
     public static UptimeFacts Uptime(double days) =>
         new(TimeSpan.FromDays(days), DateTime.Now.AddDays(-days), TimeSpan.FromDays(days), false);

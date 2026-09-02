@@ -96,6 +96,38 @@ public static class SelfTestFeatures
             if (SystemHealth.Overall(indicators).Severity != Severity.High) throw new Exception("missed memory pressure");
         });
 
+        // ⛔ The misjudgement this pins: a drive at 3% free made a machine running at 54% CPU with
+        //    0.2 GB of page file in use report STRUGGLING. Capacity is not performance.
+        r.Check("a nearly-full disk does NOT make a calm machine read as STRUGGLING", () =>
+        {
+            Snapshot calm = SampleWithDisk(totalCpu: 20, freeGb: 55, totalGb: 1861);
+            var (word, severity) = SystemHealth.Overall(SystemHealth.Assess(calm));
+            if (severity == Severity.High) throw new Exception($"graded {word} on disk space alone");
+        });
+        r.Check("...but the nearly-full disk is still reported, as a warning", () =>
+        {
+            Snapshot calm = SampleWithDisk(totalCpu: 20, freeGb: 55, totalGb: 1861);
+            IReadOnlyList<HealthIndicator> warnings = SystemHealth.Warnings(SystemHealth.Assess(calm));
+            if (warnings.Count == 0) throw new Exception("a 3%-free drive was hidden entirely");
+            if (warnings[0].Kind != IndicatorKind.Capacity) throw new Exception("miscategorised");
+        });
+        r.Check("a healthy disk produces no warning", () =>
+        {
+            Snapshot roomy = SampleWithDisk(totalCpu: 20, freeGb: 900, totalGb: 1861);
+            if (SystemHealth.Warnings(SystemHealth.Assess(roomy)).Count > 0)
+            {
+                throw new Exception("warned about a half-empty drive");
+            }
+        });
+        r.Check("real CPU pressure still reads High", () =>
+        {
+            Snapshot busy = SampleWithDisk(totalCpu: 97, freeGb: 900, totalGb: 1861);
+            if (SystemHealth.Overall(SystemHealth.Assess(busy)).Severity != Severity.High)
+            {
+                throw new Exception("splitting capacity out also silenced genuine CPU pressure");
+            }
+        });
+
         r.Section("VERSIONS AND WINDOW PLACEMENT");
         r.Check("1.10.0 is NEWER than 1.9.0 (string compare would say otherwise)", () =>
         {

@@ -1,7 +1,20 @@
 namespace PcWatch;
 
+/// <summary>
+/// What an indicator is telling you about.
+/// </summary>
+/// <remarks>
+/// ⛔ 2026-09-02. These must not be averaged together. PERFORMANCE answers "how is it running right
+///    now"; CAPACITY answers "what will bite you later". A drive at 3% free is a genuine problem and
+///    a genuine non-emergency: measured on this machine at the time, the page file held 0.2 GB, so
+///    nothing was actually paging. Letting it set the headline verdict made a storage warning read
+///    as a performance emergency, and the user quite reasonably asked whether the PC was dying.
+/// </remarks>
+public enum IndicatorKind { Performance, Capacity }
+
 /// <summary>One graded aspect of how the machine is running.</summary>
-public sealed record HealthIndicator(string Name, string Value, Severity Severity, string Verdict);
+public sealed record HealthIndicator(
+    string Name, string Value, Severity Severity, string Verdict, IndicatorKind Kind = IndicatorKind.Performance);
 
 /// <summary>
 /// "How well is this PC running" - as several named indicators, never a single mystery score.
@@ -59,7 +72,8 @@ public static class SystemHealth
                 freePercent < 5 ? Severity.High : freePercent < 12 ? Severity.Medium : Severity.Low,
                 freePercent < 5 ? "critically low - Windows needs room for the page file"
                 : freePercent < 12 ? "getting tight"
-                : "fine"));
+                : "fine",
+                IndicatorKind.Capacity));
         }
 
         return list;
@@ -74,15 +88,34 @@ public static class SystemHealth
     /// </remarks>
     public static (string Word, Severity Severity) Overall(IReadOnlyList<HealthIndicator> indicators)
     {
-        if (indicators.Count == 0) return ("measuring", Severity.Low);
+        // ⚠️ PERFORMANCE indicators only. Capacity problems are real but they are not what "how is
+        //    this machine running" asks, and letting a 3%-free disk say STRUGGLING while the CPU sat
+        //    at 54% and nothing was paging was simply wrong. Capacity is reported by Warnings().
+        var performance = indicators.Where(i => i.Kind == IndicatorKind.Performance).ToList();
+        if (performance.Count == 0) return ("measuring", Severity.Low);
 
-        Severity worst = indicators.Max(i => i.Severity);
+        Severity worst = performance.Max(i => i.Severity);
+        // ⚠️ 2026-09-02: "STRUGGLING" was the High word, and it implies a FAULT. A machine running 24
+        //    node processes and 11 agent sessions at 100% CPU is not faulty - it is doing exactly
+        //    what it was told, at capacity. The wrong word sent the user looking for a hardware
+        //    problem that did not exist. These words describe LOAD; the per-indicator lines below
+        //    say what the consequence is ("everything else is queueing behind it").
         string word = worst switch
         {
-            Severity.High => "STRUGGLING",
+            Severity.High => "FLAT OUT",
             Severity.Medium => "WORKING HARD",
             _ => "HEALTHY",
         };
         return (word, worst);
     }
+
+    /// <summary>
+    /// Capacity problems: real, but about later rather than now.
+    /// </summary>
+    /// <remarks>
+    /// Kept out of the headline verdict and surfaced separately, so that "your drive is nearly full"
+    /// is neither hidden nor mistaken for "your PC is on fire".
+    /// </remarks>
+    public static IReadOnlyList<HealthIndicator> Warnings(IReadOnlyList<HealthIndicator> indicators) =>
+        [.. indicators.Where(i => i.Kind == IndicatorKind.Capacity && i.Severity != Severity.Low)];
 }

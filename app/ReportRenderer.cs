@@ -54,12 +54,25 @@ public static class ReportRenderer
         if (health.Count > 0)
         {
             var (word, _) = SystemHealth.Overall(health);
-            sb.AppendLine($"  HOW IT IS RUNNING: {word}   (taken from the worst indicator, not an average)");
-            foreach (HealthIndicator h in health)
+            sb.AppendLine($"  HOW IT IS RUNNING: {word}   (worst PERFORMANCE indicator, not an average)");
+            foreach (HealthIndicator h in health.Where(h => h.Kind == IndicatorKind.Performance))
             {
                 sb.AppendLine($"   {h.Name,-7} {h.Value,-34} {h.Verdict}");
             }
             sb.AppendLine();
+
+            // Capacity is reported separately and never sets the verdict above. A drive at 3% free
+            // is a real problem about LATER; it is not the machine struggling NOW.
+            IReadOnlyList<HealthIndicator> warnings = SystemHealth.Warnings(health);
+            if (warnings.Count > 0)
+            {
+                sb.AppendLine("  WORTH FIXING SOON   (not slowing you down yet)");
+                foreach (HealthIndicator w in warnings)
+                {
+                    sb.AppendLine($"   {w.Name,-7} {w.Value,-34} {w.Verdict}");
+                }
+                sb.AppendLine();
+            }
         }
 
         if (snapshot.Power is { } power)
