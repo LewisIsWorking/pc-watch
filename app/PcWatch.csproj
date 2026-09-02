@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    PcWatch - a pinnable desktop CPU monitor.
+    2026-08-31. Ported from the PowerShell tray tool in the parent folder, which could not be pinned:
+    Windows offers "Pin to taskbar" only for shortcuts to executables, never for .vbs or .ps1.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+
+    <!--
+      2026-09-01. Target framework is a PROPERTY so the .NET 11 preview can be tried without
+      breaking the build that currently ships. Default stays net10.0-windows, which is what the
+      installed system SDK can compile; the preview SDK lives off-PATH at C:\Users\Lewis\dotnet11
+      so it cannot become the default for anything else on this machine.
+
+        Ship build : dotnet publish -c Release ...
+        Preview    : C:\Users\Lewis\dotnet11\dotnet.exe publish -p:PcWatchTfm=net11.0-windows ...
+    -->
+    <PcWatchTfm Condition="'$(PcWatchTfm)' == ''">net11.0-windows</PcWatchTfm>
+    <TargetFramework>$(PcWatchTfm)</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PcWatch</RootNamespace>
+    <AssemblyName>PcWatch</AssemblyName>
+    <ApplicationIcon>PcWatch.ico</ApplicationIcon>
+
+    <!-- Per-monitor DPI: the process table is fixed-width, and a blurry bitmap-scaled window
+         makes the columns unreadable on a high-DPI display. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+
+    <Version>1.1.0</Version>
+    <Product>PC Watch</Product>
+    <AssemblyTitle>PC Watch</AssemblyTitle>
+    <Description>Real CPU load, and what is causing it.</Description>
+
+    <!-- Required by the LibraryImport source generator, which emits unsafe marshalling stubs.
+         Not a licence for unsafe application code: there is none, and TreatWarningsAsErrors keeps
+         the surface honest. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+
+    <!-- 2026-09-02: SELF-CONTAINED now that the app targets .NET 11 preview. There is no system-wide
+         .NET 11 runtime (installing one needs admin), so a framework-dependent build only runs with
+         DOTNET_ROOT pointing at the private SDK - fine from a shell, useless for a pinned taskbar
+         button or for anyone downloading a release. Costs disk, buys an app that just runs. -->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- No PackageReference for System.Diagnostics.EventLog: NU1510 pointed out it already ships in
+       the net10.0-windows framework, so adding it was redundant. SystemUptime.cs uses it to read
+       the System log, which is the only way to learn when the machine actually came up. -->
+
+  <ItemGroup>
+    <!-- Kept beside the exe as well as embedded. ApplicationIcon gives Explorer and the taskbar
+         their icon; the Form loads this file so Alt-Tab and the title bar get the crisp 16/24/32 px
+         images rather than a rescaled 256. -->
+    <None Update="PcWatch.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+bin-net10/
+bin-net11/
+app/bin/
+app/obj/
+
+# The generated icon is committed (make-icon.ps1 rebuilds it, but the build needs it present).
+!app/PcWatch.ico
+
+# The superseded PowerShell original. Kept on disk as the reference this was ported from, but not
+# published: it is replaced by app/, and its test scripts carry absolute paths from one machine.
+legacy-powershell/
+
+# Local scratch
+*.user
+*.suo
+.vs/
