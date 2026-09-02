@@ -14,6 +14,17 @@ public sealed class Settings
 
     /// <summary>Skip update prompts for this version. Set when the user dismisses one.</summary>
     public string? SkipVersion { get; set; }
+
+    /// <summary>
+    /// Whether to ask GitHub about newer releases on launch.
+    /// </summary>
+    /// <remarks>
+    /// This is the ONLY thing the app sends anywhere: one HTTPS GET to api.github.com carrying a
+    /// User-Agent of "PcWatch/&lt;version&gt;". No process names, no machine details, no identifiers.
+    /// It is still a network call the user did not ask for, so it can be turned off - here, or with
+    /// --no-update-check on the command line.
+    /// </remarks>
+    public bool CheckForUpdates { get; set; } = true;
 }
 
 /// <summary>

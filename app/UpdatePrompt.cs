@@ -20,6 +20,10 @@ public static class UpdatePrompt
 {
     public static async Task CheckAsync(Form owner, UpdateChecker checker, Settings settings)
     {
+        // Opt-out honoured BEFORE the request, not after: a check that fires and then discards the
+        // answer has already told GitHub the app is running, which is the part being opted out of.
+        if (!settings.CheckForUpdates) return;
+
         AvailableUpdate? update = await checker.CheckAsync();
         if (update is null || update.Version == settings.SkipVersion) return;
 

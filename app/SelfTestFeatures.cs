@@ -130,6 +130,8 @@ public static class SelfTestFeatures
             if (SettingsStore.IsOnScreen(new Rectangle(0, 0, 0, 0))) throw new Exception("accepted a zero-size window");
         });
 
+        SelfTestPrivacy.Run(r);
+
         r.Section("GPU (skips cleanly when there is none)");
         r.Check("GPU telemetry never throws, with or without an NVIDIA card", () =>
         {

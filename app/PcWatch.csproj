@@ -38,6 +38,25 @@
          Not a licence for unsafe application code: there is none, and TreatWarningsAsErrors keeps
          the surface honest. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      PRIVACY: do not ship the builder's home directory inside the binary.
+
+      2026-09-02. The published exe carried the full intermediate-output path of its own PDB in the
+      debug directory, starting from the builder's home folder. Every downloader of a release
+      therefore learned the builder's Windows username. Nothing warns about this; it is simply what
+      the compiler writes by default.
+
+      DebugType=embedded removes the external PDB reference (and therefore that path) while keeping
+      line numbers in stack traces. PathMap rewrites the remaining compile-time source paths to a
+      neutral /src/ root. ContinuousIntegrationBuild makes the output deterministic, so two people
+      building the same commit get byte-identical binaries and a release can be verified.
+
+      Proven by app/check-no-leaks.ps1, which scans the built binary and fails on a match.
+    -->
+    <DebugType>embedded</DebugType>
+    <PathMap>$(MSBuildThisFileDirectory)=/src/</PathMap>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
 

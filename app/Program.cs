@@ -30,6 +30,16 @@ internal static class Program
         Application.SetDefaultVisualStylesMode(VisualStylesMode.Net11);
 #endif
 
+        // --no-update-check disables the one outbound request this app makes, permanently: it is
+        // written to settings rather than applied to this run only, so it does not have to be
+        // remembered on every launch.
+        if (args.Any(a => a.Equals("--no-update-check", StringComparison.OrdinalIgnoreCase)))
+        {
+            Settings settings = SettingsStore.Load();
+            settings.CheckForUpdates = false;
+            SettingsStore.Save(settings);
+        }
+
         using var form = new MainForm();
 
         // --monitor left|right|primary|<1-based index>. A one-off override: the placement is saved

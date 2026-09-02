@@ -130,8 +130,23 @@ Needs the **.NET 11 SDK** (preview 7 or later). Nothing else — no NuGet depend
 ```powershell
 cd app
 dotnet publish -c Release -r win-x64 -o ..\bin      # self-contained, single file
-..\bin\PcWatch.exe --self-test                      # 55 checks, exit code 0 or 1
+..\bin\PcWatch.exe --self-test                      # 63 checks, exit code 0 or 1
+pwsh -File check-no-leaks.ps1                       # scans the BUILT BINARY for private data
 ```
+
+## Privacy
+
+No telemetry. The only outbound request is one HTTPS GET to `api.github.com` on launch, asking
+whether a newer release exists; disable it permanently with `PcWatch.exe --no-update-check`.
+
+It reads process **names only**, never command lines — those routinely contain `--token=` and
+`--password=`, and the Toolhelp snapshot it uses cannot return one even by accident. The report is
+designed to be pasted into a bug report, and the self-test renders a live one and fails if it
+contains a filesystem path, your username, your machine name, anything shaped like a command-line
+argument or credential, or an expanded environment variable — with the scanner itself fed known-bad
+input to prove it detects anything at all.
+
+Full detail, including what "Copy report" puts on your clipboard: [SECURITY.md](SECURITY.md).
 
 Published **self-contained** (~108 MB) because there is no system-wide .NET 11 runtime yet, and a
 monitoring tool that only starts from a shell with `DOTNET_ROOT` set is not a tool anyone can pin.
