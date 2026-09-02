@@ -12,7 +12,7 @@ namespace PcWatch;
 /// </remarks>
 public static class TrayMenu
 {
-    public static ContextMenuStrip Build(Action show, Func<string> reportText, Action exit)
+    public static ContextMenuStrip Build(Action show, Func<string> reportText, Action scanStorage, Action exit)
     {
         var menu = new ContextMenuStrip();
 
@@ -22,6 +22,11 @@ public static class TrayMenu
             string text = reportText();
             if (!string.IsNullOrWhiteSpace(text)) Clipboard.SetText(text);
         });
+        menu.Items.Add(new ToolStripSeparator());
+
+        // On demand, never on a timer. Walking a 2 TB drive takes minutes and hammers the disk;
+        // doing that automatically would make the monitor a cause of the slowness it reports.
+        menu.Items.Add("Scan disk usage", null, (_, _) => scanStorage());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Task Manager", null, (_, _) => Launch("taskmgr.exe"));
         menu.Items.Add("Resource Monitor", null, (_, _) => Launch("resmon.exe"));

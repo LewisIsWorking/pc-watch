@@ -13,7 +13,45 @@ namespace PcWatch;
 /// </remarks>
 public static class ReportRenderer
 {
-    public static string Render(Snapshot snapshot, IReadOnlyList<Suspect> suspects, ProcessAncestry ancestry)
+    /// <summary>
+    /// The largest folders found by the last disk scan, with the scan's age stated.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Always prints WHEN it was measured. A full scan takes minutes and is cached across
+    /// launches, so a size here can be days old - and a stale figure shown without its age reads
+    /// exactly like a fresh one.
+    /// </remarks>
+    public static void RenderStorage(System.Text.StringBuilder sb, DiskScanner scanner)
+    {
+        if (scanner.IsScanning)
+        {
+            sb.AppendLine("  LARGEST FOLDERS   scanning in the background, this takes a few minutes...");
+            sb.AppendLine();
+            return;
+        }
+
+        if (scanner.Last is not { } scan)
+        {
+            sb.AppendLine("  LARGEST FOLDERS   not scanned yet - right-click the tray icon, Scan disk usage");
+            sb.AppendLine();
+            return;
+        }
+
+        string age = Age(DateTime.Now - scan.TakenAt);
+        string partial = scan.Complete ? "" : ", CANCELLED so incomplete";
+        sb.AppendLine($"  LARGEST FOLDERS   (measured {age} ago{partial}; totals are a floor - "
+                    + "folders Windows would not let us read are missing)");
+
+        foreach (FolderSize folder in scan.Folders.Take(12))
+        {
+            string name = folder.Path.Length > 62 ? "..." + folder.Path[^59..] : folder.Path;
+            sb.AppendLine($"   {folder.Gb,7:N1} GB  {name}");
+        }
+        sb.AppendLine();
+    }
+
+    public static string Render(
+        Snapshot snapshot, IReadOnlyList<Suspect> suspects, ProcessAncestry ancestry, DiskScanner? storage = null)
     {
         var sb = new StringBuilder();
 
@@ -95,6 +133,8 @@ public static class ReportRenderer
             }
             sb.AppendLine();
         }
+
+        if (storage is not null) RenderStorage(sb, storage);
 
         if (snapshot.Groups.Count > 0)
         {

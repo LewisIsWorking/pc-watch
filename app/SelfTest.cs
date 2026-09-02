@@ -73,6 +73,7 @@ public static class SelfTest
             () => _ = SuspectAnalyzer.FrequencyNote(Sample(50, clock: null)));
 
         SelfTestFeatures.Run(r);
+        SelfTestStorage.Run(r);
         SelfTestLive.RunUptimeChecks(r);
         SelfTestLive.RunMachineChecks(r);
         return r.Summarise();

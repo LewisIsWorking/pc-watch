@@ -19,6 +19,7 @@ public sealed class MainForm : Form
     private readonly ReportFitter _fitter;
     private readonly Settings _settings = SettingsStore.Load();
     private readonly UpdateChecker _updates = new();
+    private readonly DiskScanner _storage = new();
 
     /// <summary>
     /// The state to come back to from the tray.
@@ -62,6 +63,7 @@ public sealed class MainForm : Form
         _tray.ContextMenuStrip = TrayMenu.Build(
             RestoreFromTray,
             () => _ui.Report.Text,
+            () => _storage.Start(),
             () => { _tray.Visible = false; Application.Exit(); });
 
         _timer.Interval = 1000;
@@ -139,7 +141,7 @@ public sealed class MainForm : Form
             // and a minimised window still ticks so the tray icon and the graph stay current.
             if (Visible && WindowState != FormWindowState.Minimized)
             {
-                _ui.Report.Text = ReportRenderer.Render(snapshot, suspects, _ancestry);
+                _ui.Report.Text = ReportRenderer.Render(snapshot, suspects, _ancestry, _storage);
                 _fitter.Update();
 
                 // ⚠️ Always show the top. Preserving the previous scroll offset carried the view
