@@ -12,10 +12,8 @@
     <!--
       2026-09-02. Target framework is a PROPERTY so the app builds against either runtime.
       Default is net11.0-windows; .NET 10 works too and loses only the VisualStylesMode opt-in.
-
-        Ship build : dotnet publish -c Release -r win-x64 -o ..\bin
-        On .NET 10 : dotnet publish -c Release -r win-x64 --self-contained false
-                       -p:PcWatchTfm=net10.0-windows -o ..\bin-net10
+      Build commands are in the README: an XML comment cannot contain a double hyphen, so the
+      flags cannot be written here without breaking the project file.
     -->
     <PcWatchTfm Condition="'$(PcWatchTfm)' == ''">net11.0-windows</PcWatchTfm>
     <TargetFramework>$(PcWatchTfm)</TargetFramework>

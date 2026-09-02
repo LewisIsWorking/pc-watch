@@ -42,11 +42,11 @@ public sealed class LongRunningPanel : UserControl
         _list.ForeColor = Theme.Body;
         _list.BorderStyle = BorderStyle.None;
         _list.Font = new Font("Consolas", 9f);
-        _list.Columns.Add("Process", 150);
-        _list.Columns.Add("PID", 60, HorizontalAlignment.Right);
-        _list.Columns.Add("Memory", 80, HorizontalAlignment.Right);
-        _list.Columns.Add("Age", 70, HorizontalAlignment.Right);
-        _list.Columns.Add("Launched by", 200);
+        _list.Columns.Add("Process", 190);
+        _list.Columns.Add("PID", 65, HorizontalAlignment.Right);
+        _list.Columns.Add("Memory", 90, HorizontalAlignment.Right);
+        _list.Columns.Add("Age", 75, HorizontalAlignment.Right);
+        _list.Columns.Add("Launched by", 240);
         _list.SelectedIndexChanged += (_, _) => UpdateKillButton();
 
         _kill.Dock = DockStyle.Bottom;

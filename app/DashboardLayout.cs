@@ -87,8 +87,12 @@ public static class DashboardLayout
             BackColor = Theme.Window,
             Margin = new Padding(0),
         };
-        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 600));
+        // ⚠️ Both PROPORTIONAL. An Absolute 600 px right column collapsed to about 150 px in
+        //    practice: a TableLayoutPanel shrinks whatever it must to satisfy the rest of the
+        //    layout, and an absolute width is a request rather than a guarantee. Percentages divide
+        //    the space predictably and scale with the window instead of fighting it.
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
 
         var longRunning = new LongRunningPanel(ancestry)
         {
