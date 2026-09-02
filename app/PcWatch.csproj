@@ -10,13 +10,12 @@
     <OutputType>WinExe</OutputType>
 
     <!--
-      2026-09-01. Target framework is a PROPERTY so the .NET 11 preview can be tried without
-      breaking the build that currently ships. Default stays net10.0-windows, which is what the
-      installed system SDK can compile; the preview SDK lives off-PATH at C:\Users\Lewis\dotnet11
-      so it cannot become the default for anything else on this machine.
+      2026-09-02. Target framework is a PROPERTY so the app builds against either runtime.
+      Default is net11.0-windows; .NET 10 works too and loses only the VisualStylesMode opt-in.
 
-        Ship build : dotnet publish -c Release ...
-        Preview    : C:\Users\Lewis\dotnet11\dotnet.exe publish -p:PcWatchTfm=net11.0-windows ...
+        Ship build : dotnet publish -c Release -r win-x64 -o ..\bin
+        On .NET 10 : dotnet publish -c Release -r win-x64 --self-contained false
+                       -p:PcWatchTfm=net10.0-windows -o ..\bin-net10
     -->
     <PcWatchTfm Condition="'$(PcWatchTfm)' == ''">net11.0-windows</PcWatchTfm>
     <TargetFramework>$(PcWatchTfm)</TargetFramework>
