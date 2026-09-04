@@ -25,14 +25,45 @@ public sealed class UpdateChecker
 {
     private const string LatestReleaseApi = "https://api.github.com/repos/LewisIsWorking/pc-watch/releases/latest";
 
-    private static readonly HttpClient Http = CreateClient();
+    // One shared client for the real app. A new HttpClient per check exhausts sockets under
+    // TIME_WAIT, which is how a "harmless" periodic check ends up taking a machine down.
+    private static readonly HttpClient Shared = CreateClient(new HttpClientHandler());
+
+    private readonly HttpClient _http;
+    private readonly string _api;
+
+    /// <summary>The real checker: shared client, real GitHub.</summary>
+    public UpdateChecker()
+    {
+        _http = Shared;
+        _api = LatestReleaseApi;
+    }
+
+    /// <summary>
+    /// Test seam: supply a handler to drive every branch with no network.
+    /// </summary>
+    /// <remarks>
+    /// ⛔ 2026-09-04. Added because this file sat at 0% coverage and COULD NOT be tested at all - the
+    ///    client was static, the URL was a constant, and exercising a single line needed working
+    ///    internet and a real GitHub release.
+    ///
+    ///    That matters more than a coverage number. Nearly every branch below handles a FAILURE
+    ///    (non-200, missing tag, older version, malformed JSON), so the untestable paths were exactly
+    ///    the ones that carry the risk. Combined with the silent-by-design failure mode above, a bug
+    ///    in any of them would never reach a user as a complaint: it would present as "no updates".
+    /// </remarks>
+    public UpdateChecker(HttpMessageHandler handler, string api = LatestReleaseApi)
+    {
+        _http = CreateClient(handler);
+        _api = api;
+    }
 
     public DateTime? LastChecked { get; private set; }
     public string? LastError { get; private set; }
 
-    private static HttpClient CreateClient()
+    private static HttpClient CreateClient(HttpMessageHandler handler)
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
 
         // GitHub rejects requests with no User-Agent. Without this every check fails with a 403 that
         // looks exactly like "no updates available".
@@ -46,7 +77,7 @@ public sealed class UpdateChecker
     {
         try
         {
-            using HttpResponseMessage response = await Http.GetAsync(LatestReleaseApi, cancellation);
+            using HttpResponseMessage response = await _http.GetAsync(_api, cancellation);
             LastChecked = DateTime.Now;
 
             if (!response.IsSuccessStatusCode)

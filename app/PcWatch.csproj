@@ -53,9 +53,23 @@
 
       Proven by app/check-no-leaks.ps1, which scans the built binary and fails on a match.
     -->
-    <DebugType>embedded</DebugType>
-    <PathMap>$(MSBuildThisFileDirectory)=/src/</PathMap>
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <!--
+      ⛔ 2026-09-04: THE PRIVACY HARDENING SILENTLY DISABLES COVERAGE MEASUREMENT.
+
+      PathMap rewrites source paths to /src/, and a coverage collector looks for those source files
+      on disk to map instrumented lines back to code. It finds nothing, so it skips the whole module
+      and reports an EMPTY result - not an error, not a warning, just zero files and a 0% score that
+      looks like a configuration mistake rather than what it is.
+
+      CoverageBuild turns the three privacy/determinism settings off for a coverage run ONLY. A
+      release build never sets it, so shipped binaries keep every protection, and check-no-leaks.ps1
+      remains the backstop that would catch a release accidentally built this way.
+    -->
+    <CoverageBuild Condition="'$(CoverageBuild)' == ''">false</CoverageBuild>
+    <DebugType Condition="'$(CoverageBuild)' != 'true'">embedded</DebugType>
+    <DebugType Condition="'$(CoverageBuild)' == 'true'">portable</DebugType>
+    <PathMap Condition="'$(CoverageBuild)' != 'true'">$(MSBuildThisFileDirectory)=/src/</PathMap>
+    <ContinuousIntegrationBuild Condition="'$(CoverageBuild)' != 'true'">true</ContinuousIntegrationBuild>
 
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>

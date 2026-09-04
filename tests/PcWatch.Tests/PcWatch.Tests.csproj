@@ -1,0 +1,87 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    PcWatch.Tests - the real unit tests.
+
+    2026-09-04. Added because coverage had stalled at 54% of production code and the reported figure
+    (67.5%) was flattering itself in two ways that both had to be fixed before any number meant
+    anything:
+
+      1. GENERATED CODE WAS IN THE DENOMINATOR. RegexGenerator.g.cs alone is 1,116 lines. Chasing
+         100% against that means writing tests for the compiler's own output.
+      2. THE TESTS WERE MEASURING THEMSELVES. SelfTest*.cs is compiled INTO the app, so 1,002 lines
+         of test code counted toward the score - coverage gamed from both ends.
+
+    coverage.runsettings excludes both, so the number here is production code only.
+
+    ⭐ The in-app self-test flag is NOT being deleted. It earns its place: those cases probe the
+      LIVE machine (real counters, real event log, real disks) and are a diagnostic a user can run
+      on a box that is misbehaving. What moves here is the PURE logic, which needs no machine at all
+      and should never have needed a running app to exercise.
+
+    ⚠️ An XML comment cannot contain a double hyphen, so the self-test flag cannot be written out in
+       full anywhere in this file. PcWatch.csproj carries the same warning for the same reason.
+  -->
+
+  <PropertyGroup>
+    <!-- Must match the app's TFM or the ProjectReference will not resolve. Same property name and
+         default as PcWatch.csproj, so `-p:PcWatchTfm=net10.0-windows` moves both together. -->
+    <PcWatchTfm Condition="'$(PcWatchTfm)' == ''">net11.0-windows</PcWatchTfm>
+    <TargetFramework>$(PcWatchTfm)</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- The app sets these for shipping. A test host must not inherit them: a single-file
+         self-contained test assembly is not runnable by the test platform. -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <!--
+      ⛔ AwesomeAssertions, never FluentAssertions. The latter is paid from v8 and is banned in every
+         repo here.
+
+      ⚠️ VERSION 9 OR ABOVE, and that is not a preference. AwesomeAssertions 8.x still ships its
+         assembly as FluentAssertions.dll under the FluentAssertions NAMESPACE, so every test file
+         needs `using FluentAssertions;` and the banned name ends up all through the codebase even
+         though the banned package is absent. Version 9 renames the assembly to
+         AwesomeAssertions.dll, so the name disappears entirely. Pinned low here on 2026-09-04 and
+         corrected the same day.
+    -->
+    <PackageReference Include="AwesomeAssertions" Version="9.5.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\app\PcWatch.csproj" />
+  </ItemGroup>
+
+  <!--
+    The ban, enforced rather than described.
+
+    2026-09-04. A comment saying "do not use FluentAssertions" is not a control: it is advice that
+    loses to autocomplete and to anyone copying a test from another repo. This fails the BUILD.
+
+    The version floor is the half that is easy to miss. Adding the correct PACKAGE at the wrong
+    MAJOR reintroduces the FluentAssertions namespace through the back door, and every test still
+    compiles and passes, so nothing else would ever notice.
+
+    ⭐ Proven on 2026-09-04 by pinning 8.0.2 and confirming the build failed with the message below.
+  -->
+  <Target Name="GuardAssertionLibrary" BeforeTargets="CoreCompile">
+    <Error
+      Condition="'%(PackageReference.Identity)' == 'FluentAssertions'"
+      Text="FluentAssertions is BANNED in this repo (paid from v8). Use AwesomeAssertions v9 or above." />
+    <Error
+      Condition="'%(PackageReference.Identity)' == 'AwesomeAssertions' AND $([System.Version]::Parse('%(PackageReference.Version)').Major) &lt; 9"
+      Text="AwesomeAssertions %(PackageReference.Version) still ships FluentAssertions.dll under the FluentAssertions namespace, which reintroduces the banned name. Use v9 or above." />
+  </Target>
+
+</Project>
