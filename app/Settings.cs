@@ -43,7 +43,21 @@ public static class SettingsStore
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
-    public static string Path { get; } = System.IO.Path.Combine(
+    /// <summary>Where settings live. Settable ONLY so tests need not write the real file.</summary>
+    /// <remarks>
+    /// ⛔ 2026-09-05. This was get-only, which meant Save() could not be tested without OVERWRITING
+    ///    THE USER'S ACTUAL SETTINGS - their real saved window position, destroyed by running the
+    ///    test suite. So it was never tested, and the round trip that decides whether your window
+    ///    reopens where you left it had no coverage at all.
+    ///
+    ///    A settable static is not lovely. Silently clobbering a user's file from a test run is
+    ///    considerably worse, and the alternative (an injected store threaded through every caller)
+    ///    buys nothing here: there is exactly one settings file per machine.
+    ///
+    /// ⚠️ The app itself must never assign this. If a production code path ever needs a different
+    ///    location, give it a parameter instead.
+    /// </remarks>
+    public static string Path { get; set; } = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PcWatch", "settings.json");
 
     public static Settings Load()

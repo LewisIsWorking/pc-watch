@@ -58,8 +58,7 @@ public sealed class ReportFitter
 
         int first = _report.GetPositionFromCharIndex(_report.GetFirstCharIndexFromLine(0)).Y;
         int second = _report.GetPositionFromCharIndex(_report.GetFirstCharIndexFromLine(1)).Y;
-        int height = second - first;
-        if (height > 0) LineHeight = height;
+        LineHeight = PickLineHeight(LineHeight, first, second);
     }
 
     private void AdjustRows()
@@ -69,12 +68,51 @@ public sealed class ReportFitter
         // Line COUNT, never a pixel position. GetPositionFromCharIndex clamps to the visible area,
         // so anything below the fold reports an in-view Y and cannot signal overflow.
         int totalLines = _report.GetLineFromCharIndex(_report.TextLength - 1) + 1;
-        int visibleLines = Math.Max(4, _report.ClientSize.Height / LineHeight);
-        int excess = totalLines - visibleLines;
+        Rows = NextRowCount(Rows, totalLines, VisibleLines(_report.ClientSize.Height, LineHeight));
+    }
 
-        // Shrink by the whole overshoot so it converges in one step; grow one row at a time, with a
-        // line of deadband, so it settles instead of oscillating across the boundary.
-        if (excess > 0) Rows = Math.Max(MinRows, Rows - Math.Max(1, excess));
-        else if (excess < -1) Rows = Math.Min(MaxRows, Rows + 1);
+    // ── The decisions, as pure functions ────────────────────────────────────────────────────────
+    //
+    // 2026-09-05. Split out of the methods above because the arithmetic was welded to a live
+    // RichTextBox: reaching a single branch needed a real control, a created window handle and a
+    // rendered layout, so NONE of it was covered. The remarks at the top of this file record four
+    // wrong answers arrived at by calculation, one of which could never fail no matter how badly
+    // the text overran. That history is precisely why this arithmetic deserves direct tests.
+    //
+    // The control-facing methods above keep their exact behaviour; they now only READ the control
+    // and hand the numbers here.
+
+    /// <summary>Keep the previous height unless the two sampled line tops give a positive spacing.</summary>
+    /// <remarks>
+    /// A non-positive difference means the control has not laid out yet, or both lines report the
+    /// same Y. Adopting a zero would make VisibleLines divide by zero on the very next call.
+    /// </remarks>
+    public static int PickLineHeight(int current, int firstLineTop, int secondLineTop)
+    {
+        int height = secondLineTop - firstLineTop;
+        return height > 0 ? height : current;
+    }
+
+    /// <summary>How many lines fit, never fewer than four.</summary>
+    /// <remarks>
+    /// The floor of four keeps a collapsed or not-yet-laid-out panel from reporting zero visible
+    /// lines, which would make every sample look like a massive overflow and drive Rows to MinRows.
+    /// </remarks>
+    public static int VisibleLines(int clientHeight, int lineHeight) =>
+        lineHeight <= 0 ? 4 : Math.Max(4, clientHeight / lineHeight);
+
+    /// <summary>The next row budget, given what actually rendered.</summary>
+    /// <remarks>
+    /// ⚠️ ASYMMETRIC ON PURPOSE. Shrinking takes the whole overshoot at once so it converges in a
+    ///    single step; growing adds one row at a time and only when at least two lines are spare.
+    ///    Symmetric behaviour oscillates across the boundary for ever, adding and removing the same
+    ///    row on alternate samples, which looks like a flickering table.
+    /// </remarks>
+    public static int NextRowCount(int currentRows, int totalLines, int visibleLines)
+    {
+        int excess = totalLines - visibleLines;
+        if (excess > 0) return Math.Max(MinRows, currentRows - Math.Max(1, excess));
+        if (excess < -1) return Math.Min(MaxRows, currentRows + 1);
+        return currentRows;
     }
 }

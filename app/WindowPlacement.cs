@@ -34,10 +34,8 @@ public static class WindowPlacement
     /// <summary>Record where the window is, so the next launch reopens there.</summary>
     public static void Save(Form form, Settings settings)
     {
-        // RestoreBounds, not Bounds: while maximised, Bounds is the whole screen, and saving that
-        // would make un-maximising snap to full screen for ever afterwards.
-        Rectangle bounds = form.WindowState == FormWindowState.Normal ? form.Bounds : form.RestoreBounds;
-        if (bounds.Width <= 0 || bounds.Height <= 0) return;
+        Rectangle? worth = PlacementToSave(form.WindowState, form.Bounds, form.RestoreBounds);
+        if (worth is not Rectangle bounds) return;
 
         settings.X = bounds.X;
         settings.Y = bounds.Y;
@@ -61,15 +59,8 @@ public static class WindowPlacement
         Screen[] ordered = [.. Screen.AllScreens.OrderBy(s => s.Bounds.X)];
         if (ordered.Length == 0) return false;
 
-        Screen? target = monitor.ToLowerInvariant() switch
-        {
-            "left" or "first" => ordered[0],
-            "right" or "last" => ordered[^1],
-            "primary" => Screen.PrimaryScreen,
-            _ => int.TryParse(monitor, out int index) && index >= 1 && index <= ordered.Length
-                ? ordered[index - 1]
-                : null,
-        };
+        int? chosen = SelectMonitorIndex(monitor, ordered.Length);
+        Screen? target = chosen is int index ? ordered[index] : ResolvePrimary(monitor);
         if (target is null) return false;
 
         Rectangle work = target.WorkingArea;
@@ -79,13 +70,74 @@ public static class WindowPlacement
         // Maximising a window that still believes it lives on another monitor lands it back there.
         FormWindowState wanted = form.WindowState;
         form.WindowState = FormWindowState.Normal;
-        form.Bounds = new Rectangle(
-            work.X + (work.Width - Math.Min(form.Width, work.Width)) / 2,
-            work.Y + (work.Height - Math.Min(form.Height, work.Height)) / 2,
-            Math.Min(form.Width, work.Width),
-            Math.Min(form.Height, work.Height));
+        form.Bounds = CentreWithin(work, form.Size);
 
         if (wanted == FormWindowState.Maximized) form.WindowState = FormWindowState.Maximized;
         return true;
+    }
+
+    private static Screen? ResolvePrimary(string monitor) =>
+        monitor.Equals("primary", StringComparison.OrdinalIgnoreCase) ? Screen.PrimaryScreen : null;
+
+    // ── The decisions, as pure functions ────────────────────────────────────────────────────────
+    //
+    // 2026-09-05. Extracted because this whole file sat at 0%: every branch needed real monitors
+    // and a real window, so the arithmetic that decides WHERE your window reopens was never once
+    // exercised by a test. The remarks at the top of this file describe the failure it guards
+    // against - a window restored onto a monitor that is no longer attached, which is
+    // indistinguishable from the app failing to launch.
+
+    /// <summary>
+    /// Which screen a name refers to, as an index into the X-ordered list. Null means "not an index".
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Screens are ordered by X coordinate, not by enumeration order: "right monitor" is a
+    ///    SPATIAL statement, and Screen.AllScreens order is an installation detail that does not
+    ///    track physical arrangement. "primary" is deliberately NOT resolved here, because it is the
+    ///    one name that means a specific display rather than a position.
+    /// </remarks>
+    public static int? SelectMonitorIndex(string monitor, int screenCount)
+    {
+        if (screenCount <= 0) return null;
+
+        switch (monitor.ToLowerInvariant())
+        {
+            case "left":
+            case "first":
+                return 0;
+            case "right":
+            case "last":
+                return screenCount - 1;
+            default:
+                // 1-BASED, because a person saying "monitor 2" means the second one.
+                return int.TryParse(monitor, out int index) && index >= 1 && index <= screenCount
+                    ? index - 1
+                    : null;
+        }
+    }
+
+    /// <summary>Centre a window in a working area, shrinking it if it does not fit.</summary>
+    public static Rectangle CentreWithin(Rectangle work, Size window)
+    {
+        int width = Math.Min(window.Width, work.Width);
+        int height = Math.Min(window.Height, work.Height);
+        return new Rectangle(
+            work.X + (work.Width - width) / 2,
+            work.Y + (work.Height - height) / 2,
+            width,
+            height);
+    }
+
+    /// <summary>The rectangle worth persisting, or null when there is nothing sensible to save.</summary>
+    /// <remarks>
+    /// ⚠️ RestoreBounds, never Bounds, unless the window is Normal. While maximised, Bounds is the
+    ///    whole screen; saving that makes un-maximising snap to full screen FOR EVER afterwards,
+    ///    and the user can never get their small window back.
+    /// </remarks>
+    public static Rectangle? PlacementToSave(
+        FormWindowState state, Rectangle bounds, Rectangle restoreBounds)
+    {
+        Rectangle chosen = state == FormWindowState.Normal ? bounds : restoreBounds;
+        return chosen.Width <= 0 || chosen.Height <= 0 ? null : chosen;
     }
 }
