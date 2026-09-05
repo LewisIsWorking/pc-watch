@@ -19,6 +19,7 @@ public sealed class SingleInstance : IDisposable
     private readonly Mutex _mutex;
     private readonly EventWaitHandle _activateSignal;
     private readonly CancellationTokenSource _cancellation = new();
+    private Thread? _listener;
 
     public bool IsFirstInstance { get; }
 
@@ -50,24 +51,54 @@ public sealed class SingleInstance : IDisposable
 
     private void StartListening()
     {
-        var thread = new Thread(() =>
+        // ⛔ 2026-09-05: THE TOKEN AND HANDLES ARE CAPTURED HERE, ON THE CALLING THREAD.
+        //
+        //    They used to be read INSIDE the thread body, which raced with Dispose. Construct an
+        //    instance and dispose it before the new thread is scheduled, and the first thing that
+        //    thread did was read _cancellation.Token on a DISPOSED source and throw
+        //    ObjectDisposedException. An unhandled exception on a background thread TAKES THE WHOLE
+        //    PROCESS DOWN, so the app died with a stack trace pointing at a line that merely
+        //    prepared a wait.
+        //
+        //    It hid because the FIRST instance normally lives for the lifetime of the app. But the
+        //    second instance is constructed and disposed within milliseconds on EVERY click of the
+        //    pinned icon, which is the single most common thing a user does with this app.
+        //
+        //    Found by SingleInstanceTests on 2026-09-04, which crashed the whole test host.
+        CancellationToken token = _cancellation.Token;
+        WaitHandle[] handles = [_activateSignal, token.WaitHandle];
+
+        _listener = new Thread(() =>
         {
-            WaitHandle[] handles = [_activateSignal, _cancellation.Token.WaitHandle];
-            while (!_cancellation.IsCancellationRequested)
+            try
             {
-                if (WaitHandle.WaitAny(handles) == 0) ActivationRequested?.Invoke();
+                while (!token.IsCancellationRequested)
+                {
+                    if (WaitHandle.WaitAny(handles) == 0) ActivationRequested?.Invoke();
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // Torn down while waiting. Shutting down is not a failure, and throwing here would
+                // kill the process rather than the thread.
             }
         })
         {
             IsBackground = true,
             Name = "PcWatch.ActivationListener",
         };
-        thread.Start();
+        _listener.Start();
     }
 
     public void Dispose()
     {
         _cancellation.Cancel();
+
+        // ⚠️ Wait for the listener to leave BEFORE disposing anything it waits on. Cancelling only
+        //    asks; without the join, the handles below can be destroyed while the thread is still
+        //    inside WaitAny. Bounded so a wedged thread cannot hang an application exit.
+        _listener?.Join(TimeSpan.FromSeconds(2));
+
         if (IsFirstInstance)
         {
             try { _mutex.ReleaseMutex(); } catch (ApplicationException) { /* not owned */ }
