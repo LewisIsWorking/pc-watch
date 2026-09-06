@@ -219,6 +219,74 @@ public sealed class LongRunningPanelTests
         List.Items[0].SubItems[4].Text.Should().Be("-");
     }
 
+    // ── The confirmation, and the outcome ───────────────────────────────────────────────────────
+
+    [Test]
+    public void The_confirmation_states_EVERY_fact_the_decision_needs()
+    {
+        // ⭐ The last thing a user reads before a process dies. Every clause is load-bearing.
+        string body = LongRunningPanel.ConfirmationBody(
+            Process(name: "qemu-system-x86_64", id: 9876, memoryMb: 6144, ageHours: 50),
+            owner: "claude session",
+            warning: null);
+
+        body.Should().Contain("qemu-system-x86_64", "what it is");
+        body.Should().Contain("9876", "which one, exactly");
+        body.Should().Contain("6,144 MB", "what it is holding");
+        body.Should().Contain("claude session", "WHO LAUNCHED IT");
+        body.Should().Contain("no chance to save", "that it is irreversible");
+    }
+
+    [Test]
+    public void A_program_specific_warning_is_included_when_there_is_one()
+    {
+        var (_, warning) = ProcessKiller.CanKill("qemu-system-x86_64");
+        warning.Should().NotBeNull("premise: an emulator carries a warning");
+
+        string body = LongRunningPanel.ConfirmationBody(
+            Process(name: "qemu-system-x86_64"), "explorer", warning);
+
+        body.Should().Contain("virtual machine",
+            "losing everything inside the VM is the consequence that matters");
+    }
+
+    [Test]
+    public void No_warning_leaves_no_empty_gap_in_the_message()
+    {
+        string body = LongRunningPanel.ConfirmationBody(Process(name: "dotnet"), "pwsh", warning: null);
+
+        // ⚠️ Three LINE FEEDS, not Environment.NewLine. ConfirmationBody is built with "\n"
+        //    literals, so a CRLF comparison would never match and this assertion would pass
+        //    vacuously - green while checking nothing at all.
+        body.Should().NotContain(new string('\n', 3),
+            "an ordinary process must not get a blank paragraph where the warning would be");
+    }
+
+    [Test]
+    public void An_unknown_age_says_unknown_rather_than_inventing_one()
+    {
+        var noStart = new ProcessLoad("mystery", 111, 0.5, 1024 * 1024, null, 0);
+
+        LongRunningPanel.ConfirmationBody(noStart, "-", null)
+            .Should().Contain("Running for unknown");
+    }
+
+    [Test]
+    public void A_SUCCESS_and_a_REFUSAL_do_not_look_alike()
+    {
+        // ⛔ A refusal shown in the success colour reads as confirmation that something was ended,
+        //    which is the worst possible misreading for this particular status line.
+        Label status = _panel.Controls.OfType<Label>().First(l => l.Dock == DockStyle.Bottom);
+
+        _panel.ShowResult(killed: true, "Ended dotnet (pid 1) and its child processes.");
+        Color success = status.ForeColor;
+        status.Text.Should().Contain("Ended");
+
+        _panel.ShowResult(killed: false, "pid 1 is now 'chrome', not 'dotnet'. The pid was reused.");
+        status.ForeColor.Should().NotBe(success);
+        status.Text.Should().Contain("reused");
+    }
+
     [Test]
     public void Repeated_updates_with_the_same_data_are_stable()
     {

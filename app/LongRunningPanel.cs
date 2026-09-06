@@ -146,14 +146,11 @@ public sealed class LongRunningPanel : UserControl
         var (allowed, warning) = ProcessKiller.CanKill(target.Name);
         if (!allowed) return;
 
-        string owner = OwnerFor(target.Id);
-        string body = $"End {target.Name} (pid {target.Id})?\n\n"
-                    + $"Running for {(target.Age is { } a ? ReportRenderer.Age(a) : "unknown")}, "
-                    + $"holding {target.MemoryMb:N0} MB.\n"
-                    + $"Launched by: {owner}\n\n"
-                    + (warning is null ? "" : warning + "\n\n")
-                    + "This ends it immediately, with no chance to save.";
+        string body = ConfirmationBody(target, OwnerFor(target.Id), warning);
 
+        // ⚠️ THE ONLY UNTESTABLE LINE HERE, and deliberately so: MessageBox.Show blocks on a modal
+        //    dialog, and a test that reached it would hang the suite rather than fail. Button2 is
+        //    the default, so a stray Enter or Space says NO.
         if (MessageBox.Show(body, "End process", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
                             MessageBoxDefaultButton.Button2) != DialogResult.Yes)
         {
@@ -161,6 +158,35 @@ public sealed class LongRunningPanel : UserControl
         }
 
         var (killed, message) = ProcessKiller.Kill(target.Id, target.Name);
+        ShowResult(killed, message);
+    }
+
+    /// <summary>
+    /// What the confirmation actually says before something is ended.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ 2026-09-06. Extracted so its WORDING can be asserted. This is the last thing a user reads
+    ///   before a process dies, so every clause is load-bearing: what it is, how long it has been
+    ///   running, what it is holding, WHO LAUNCHED IT, any consequence specific to that program, and
+    ///   that there is no chance to save. The owner line is the one that matters most - the emulator
+    ///   this app once advised closing turned out to belong to a live agent session.
+    /// </remarks>
+    internal static string ConfirmationBody(ProcessLoad target, string owner, string? warning) =>
+        $"End {target.Name} (pid {target.Id})?\n\n"
+        + $"Running for {(target.Age is { } a ? ReportRenderer.Age(a) : "unknown")}, "
+        + $"holding {target.MemoryMb:N0} MB.\n"
+        + $"Launched by: {owner}\n\n"
+        + (warning is null ? "" : warning + "\n\n")
+        + "This ends it immediately, with no chance to save.";
+
+    /// <summary>Report the outcome in the status line, coloured by whether it worked.</summary>
+    /// <remarks>
+    /// A refusal and a success must not look alike. The refusal text explains itself (a reused pid,
+    /// an already-exited process, access denied), and it is shown in the alarm colour so it is not
+    /// mistaken for confirmation that something was ended.
+    /// </remarks>
+    internal void ShowResult(bool killed, string message)
+    {
         _status.ForeColor = killed ? Theme.Low : Theme.High;
         _status.Text = message;
     }
