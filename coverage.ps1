@@ -39,8 +39,8 @@ param(
     # ⭐ A RATCHET. These are the measured values as of 2026-09-04, so any change that LOWERS
     #   coverage fails immediately. Raise them as coverage improves; never lower them to make a
     #   build pass. Target is 100/100.
-    [double]$MinimumLine = 62.6,
-    [double]$MinimumBranch = 64.2,
+    [double]$MinimumLine = 66.1,
+    [double]$MinimumBranch = 67.5,
     [string]$Tfm = 'net10.0-windows'
 )
 
