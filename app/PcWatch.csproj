@@ -88,6 +88,14 @@
        the System log, which is the only way to learn when the machine actually came up. -->
 
   <ItemGroup>
+    <!-- 2026-09-06. Lets the tests reach a small number of internal members whose FAILURE paths
+         cannot otherwise be exercised, such as TrayMenu.Launch swallowing a bad executable name.
+         Kept deliberately narrow: the public surface is what tests should normally use, and an
+         internal seam is a last resort rather than a shortcut around a hard-to-test design. -->
+    <InternalsVisibleTo Include="PcWatch.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Kept beside the exe as well as embedded. ApplicationIcon gives Explorer and the taskbar
          their icon; the Form loads this file so Alt-Tab and the title bar get the crisp 16/24/32 px
          images rather than a rescaled 256. -->

@@ -12,8 +12,22 @@ namespace PcWatch;
 /// </remarks>
 public static class TrayMenu
 {
-    public static ContextMenuStrip Build(Action show, Func<string> reportText, Action scanStorage, Action exit)
+    /// <param name="launch">
+    /// How to open an external tool. Defaults to really starting it.
+    /// </param>
+    /// <remarks>
+    /// ⛔ 2026-09-06. The launcher is a parameter because a test that CLICKS these items would
+    ///    otherwise really open Task Manager and Resource Monitor on the developer's desktop, every
+    ///    single run. That is not a hypothetical: it is what happens the moment you assert the menu
+    ///    wires its handlers up.
+    ///
+    /// ⭐ It also lets a test assert WHICH tool each item asks for. A test that only checks "a
+    ///   handler ran" passes just as happily when both items open the same program.
+    /// </remarks>
+    public static ContextMenuStrip Build(
+        Action show, Func<string> reportText, Action scanStorage, Action exit, Action<string>? launch = null)
     {
+        Action<string> open = launch ?? Launch;
         var menu = new ContextMenuStrip();
 
         menu.Items.Add("Show PC Watch", null, (_, _) => show());
@@ -28,15 +42,17 @@ public static class TrayMenu
         // doing that automatically would make the monitor a cause of the slowness it reports.
         menu.Items.Add("Scan disk usage", null, (_, _) => scanStorage());
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Task Manager", null, (_, _) => Launch("taskmgr.exe"));
-        menu.Items.Add("Resource Monitor", null, (_, _) => Launch("resmon.exe"));
+        menu.Items.Add("Task Manager", null, (_, _) => open("taskmgr.exe"));
+        menu.Items.Add("Resource Monitor", null, (_, _) => open("resmon.exe"));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => exit());
 
         return menu;
     }
 
-    private static void Launch(string exe)
+    /// <summary>Really open an external tool, swallowing any failure.</summary>
+    /// <remarks>Internal rather than private so the failure path can be tested directly.</remarks>
+    internal static void Launch(string exe)
     {
         try
         {
