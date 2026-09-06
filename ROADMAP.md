@@ -72,13 +72,38 @@ running build from an abandoned one is the entire difficulty.
 Tracked by `coverage.ps1`, which enforces a ratchet floor. Target is 100% of production code, with
 generated code and both test suites excluded from the denominator.
 
-Still open as of 2026-09-06: `MainForm` (233 lines, 0%), `LongRunningPanel` (125), `Program` (78),
-and the modal-dialog line in `UpdatePrompt`, which is deliberately untested because
-`MessageBox.Show` hangs a test run rather than failing it.
+**92.1% line, 90.7% branch** as of 2026-09-06, across 295 tests.
 
-## Standards debt
+What is left is mostly not reachable rather than merely untested:
 
-- `ReportRenderer.cs` is **219 lines**, over the 200-line limit, and needs extracting rather than
-  trimming.
-- Six partial classes remain (`GpuTelemetry`, `Native`, `ProcessTable`, `ReportPrivacy`,
-  `SelfTestRunner`, `SuspectAnalyzer`), which the standards ban outright.
+- `Program.Main` ends in `Application.Run`, which blocks for the life of the app. Its decisions were
+  extracted (`WantsSelfTest`, `ArgumentValue`, ...) and are covered; the wiring itself is not.
+- Two `MessageBox.Show` calls, in `UpdatePrompt` and `LongRunningPanel`. A modal dialog does not
+  fail a test, it HANGS it, so both were reduced to a single line with the decision either side
+  extracted and covered.
+- Hardware paths this machine cannot exercise: the no-NVIDIA fallback in `GpuTelemetry`, and WMI
+  refusing in `MachineProbe`. The degradation CONTRACT is tested; the branch cannot be taken here.
+
+## Standards
+
+✅ **Both cleared 2026-09-06.** `ReportRenderer` was 219 lines and is now 113, split into
+`ReportSections`. Every file in `app/` and `tests/` is under 200 lines.
+
+⚠️ **The six `partial` classes are NOT a violation, and must not be "fixed".** This was recorded here
+as debt on 2026-09-06 and that was wrong.
+
+`GpuTelemetry`, `Native`, `ProcessTable` and `SelfTestRunner` use `[LibraryImport]`; `ReportPrivacy`
+and `SuspectAnalyzer` use `[GeneratedRegex]`. Both source generators REQUIRE the containing type to
+be `partial`, and every one of the six is a single hand-written file - none is split across two.
+
+Proven rather than argued: removing the modifier from `ReportPrivacy` fails the build with
+
+```
+error CS0260: Missing partial modifier on declaration of type 'ReportPrivacy';
+              another partial declaration of this type exists
+```
+
+That is the same category as the XAML `.g.cs` exception the standards already carve out, and for
+the same stated reason: auto-generated and unavoidable. The banned pattern is hand-written code
+split across several files to hide complexity, which shares private state, improves nothing, and
+makes dependencies implicit. None of that applies here.

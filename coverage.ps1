@@ -39,8 +39,8 @@ param(
     # ⭐ A RATCHET. These are the measured values as of 2026-09-04, so any change that LOWERS
     #   coverage fails immediately. Raise them as coverage improves; never lower them to make a
     #   build pass. Target is 100/100.
-    [double]$MinimumLine = 92.1,
-    [double]$MinimumBranch = 90.7,
+    [double]$MinimumLine = 92.2,
+    [double]$MinimumBranch = 91.1,
     [string]$Tfm = 'net10.0-windows'
 )
 
@@ -55,7 +55,12 @@ if (-not (Get-Command dotnet-coverage -ErrorAction SilentlyContinue)) {
 
 # Files that must not count toward the product's score. Generated code is not ours to test, and
 # test code that measures itself makes every added test raise the number for free.
-$excluded = '\.g\.cs$|\.g\.i\.cs$|^SelfTest|Tests\.cs$|^FakeHttp\.cs$'
+#
+# ⚠️ 2026-09-06: `Fixture.cs$` was added after shared test BASE CLASSES appeared and were silently
+#    counted as PRODUCTION code. They sit at 100% by construction, so they raised the score for
+#    nothing - precisely the failure this list exists to prevent, reintroduced by a naming
+#    convention the pattern did not anticipate. Any new suffix under tests/ needs a look here.
+$excluded = '\.g\.cs$|\.g\.i\.cs$|^SelfTest|Tests\.cs$|Fixture\.cs$|^FakeHttp\.cs$'
 
 Write-Host 'building (CoverageBuild=true: privacy PathMap off, portable PDBs on)' -ForegroundColor Cyan
 # ⚠️ SelfContained must be OFF for a coverage run. The app ships self-contained (there is no
