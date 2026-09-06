@@ -34,21 +34,38 @@ public static class UpdatePrompt
 
     private static void Show(AvailableUpdate update, Settings settings)
     {
+        // ⚠️ THE ONLY UNTESTABLE LINE IN THIS FILE, and deliberately the only one. MessageBox.Show
+        //    blocks on a modal dialog, so a test that reached it would hang the suite for ever
+        //    rather than fail. Everything decided either side of it lives in Apply below.
         DialogResult choice = MessageBox.Show(
-            $"PC Watch {update.Version} is available. You are running {AppVersion.Number}.\n\n"
-            + $"{Truncate(update.Notes, 400)}\n\nOpen the download page?",
-            "Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            BuildMessage(update), "Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
 
+        Apply(choice, update, settings, OpenInBrowser);
+    }
+
+    /// <summary>What the dialog says. Separated so its wording can be asserted.</summary>
+    internal static string BuildMessage(AvailableUpdate update) =>
+        $"PC Watch {update.Version} is available. You are running {AppVersion.Number}.\n\n"
+        + $"{Truncate(update.Notes, 400)}\n\nOpen the download page?";
+
+    /// <summary>
+    /// Act on the user's answer: open the page, or go quiet until a newer version appears.
+    /// </summary>
+    /// <remarks>
+    /// ⭐ 2026-09-06. Extracted from Show so it can be tested at all. This is where the promise in
+    ///   the class remarks is actually kept - declining records the version so the prompt does not
+    ///   reappear on every launch - and that promise had no test, because reaching it required
+    ///   answering a modal dialog.
+    ///
+    /// ⚠️ ONLY a decline records the version. Accepting must NOT, or a user who opens the download
+    ///    page and then does not install would never be told about that release again.
+    /// </remarks>
+    internal static void Apply(
+        DialogResult choice, AvailableUpdate update, Settings settings, Action<string> open)
+    {
         if (choice == DialogResult.Yes)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo(update.Url) { UseShellExecute = true });
-            }
-            catch
-            {
-                // No default browser is not this app's problem to solve.
-            }
+            open(update.Url);
             return;
         }
 
@@ -56,7 +73,19 @@ public static class UpdatePrompt
         SettingsStore.Save(settings);
     }
 
-    private static string Truncate(string text, int max) =>
+    private static void OpenInBrowser(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // No default browser is not this app's problem to solve.
+        }
+    }
+
+    internal static string Truncate(string text, int max) =>
         string.IsNullOrWhiteSpace(text) ? string.Empty
         : text.Length <= max ? text
         : text[..max] + "...";
