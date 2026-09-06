@@ -8,7 +8,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(a => a.Equals("--self-test", StringComparison.OrdinalIgnoreCase)))
+        if (WantsSelfTest(args))
         {
             return SelfTest.Run();
         }
@@ -33,11 +33,9 @@ internal static class Program
         // --no-update-check disables the one outbound request this app makes, permanently: it is
         // written to settings rather than applied to this run only, so it does not have to be
         // remembered on every launch.
-        if (args.Any(a => a.Equals("--no-update-check", StringComparison.OrdinalIgnoreCase)))
+        if (WantsNoUpdateCheck(args))
         {
-            Settings settings = SettingsStore.Load();
-            settings.CheckForUpdates = false;
-            SettingsStore.Save(settings);
+            DisableUpdateChecks();
         }
 
         using var form = new MainForm();
@@ -60,8 +58,38 @@ internal static class Program
         return 0;
     }
 
+    // ── The command line, as testable decisions ────────────────────────────────────────────────
+    //
+    // 2026-09-06. Main is a composition root: it ends in Application.Run, which blocks for the life
+    // of the app, so it cannot be called from a test at all. Extracting the DECISIONS it makes
+    // leaves Main as wiring and puts the parsing - which has real edge cases and no UI - where it
+    // can be exercised.
+
+    /// <summary>Run the in-app self test instead of the window.</summary>
+    internal static bool WantsSelfTest(string[] args) => HasFlag(args, "--self-test");
+
+    /// <summary>
+    /// Turn off the one outbound request this app makes.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ PERMANENT, not for this run. It is written to settings so it does not have to be
+    ///    remembered on every launch, which is the difference between an opt-out and a chore.
+    /// </remarks>
+    internal static bool WantsNoUpdateCheck(string[] args) => HasFlag(args, "--no-update-check");
+
+    /// <summary>Persist the update opt-out.</summary>
+    internal static void DisableUpdateChecks()
+    {
+        Settings settings = SettingsStore.Load();
+        settings.CheckForUpdates = false;
+        SettingsStore.Save(settings);
+    }
+
+    private static bool HasFlag(string[] args, string name) =>
+        args.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Value of "--name value" or "--name=value", or null when absent.</summary>
-    private static string? ArgumentValue(string[] args, string name)
+    internal static string? ArgumentValue(string[] args, string name)
     {
         for (int i = 0; i < args.Length; i++)
         {
