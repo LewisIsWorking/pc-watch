@@ -16,31 +16,14 @@ namespace PcWatch.Tests;
 ///    so the teardown is not optional politeness.
 /// </remarks>
 [TestFixture]
-public sealed class SettingsStoreTests
+public sealed class SettingsStoreTests : SettingsRedirectFixture
 {
-    private string _realPath = string.Empty;
-    private string _temp = string.Empty;
 
-    [SetUp]
-    public void PointAtATempFile()
-    {
-        _realPath = SettingsStore.Path;
-        _temp = Path.Combine(Path.GetTempPath(), $"pcwatch-tests-{Guid.NewGuid():N}", "settings.json");
-        SettingsStore.Path = _temp;
-    }
-
-    [TearDown]
-    public void PutTheRealPathBack()
-    {
-        SettingsStore.Path = _realPath;
-        string? dir = Path.GetDirectoryName(_temp);
-        if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-    }
 
     [Test]
     public void A_missing_file_loads_defaults_rather_than_failing()
     {
-        File.Exists(_temp).Should().BeFalse("premise: nothing has been written yet");
+        File.Exists(SettingsPath).Should().BeFalse("premise: nothing has been written yet");
 
         Settings loaded = SettingsStore.Load();
 
@@ -69,11 +52,11 @@ public sealed class SettingsStoreTests
     [Test]
     public void Saving_creates_the_directory_if_it_is_missing()
     {
-        Directory.Exists(Path.GetDirectoryName(_temp)!).Should().BeFalse("premise");
+        Directory.Exists(Path.GetDirectoryName(SettingsPath)!).Should().BeFalse("premise");
 
         SettingsStore.Save(new Settings { HasPlacement = true, Width = 100 });
 
-        File.Exists(_temp).Should().BeTrue("a first run has no PcWatch folder yet");
+        File.Exists(SettingsPath).Should().BeTrue("a first run has no PcWatch folder yet");
     }
 
     [Test]
@@ -81,8 +64,8 @@ public sealed class SettingsStoreTests
     {
         // ⛔ The behaviour that matters. A half-written or hand-edited file must never prevent the
         //    app starting: defaults are always usable, a half-parsed placement is not.
-        Directory.CreateDirectory(Path.GetDirectoryName(_temp)!);
-        File.WriteAllText(_temp, "{ this is not json at all");
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        File.WriteAllText(SettingsPath, "{ this is not json at all");
 
         Settings loaded = SettingsStore.Load();
 
@@ -93,8 +76,8 @@ public sealed class SettingsStoreTests
     [Test]
     public void An_EMPTY_file_loads_defaults()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_temp)!);
-        File.WriteAllText(_temp, string.Empty);
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        File.WriteAllText(SettingsPath, string.Empty);
 
         SettingsStore.Load().Should().NotBeNull();
     }
@@ -104,8 +87,8 @@ public sealed class SettingsStoreTests
     {
         // Deserialize returns null for the literal "null", which would NullReferenceException at
         // every use site if the ?? new Settings() were ever removed.
-        Directory.CreateDirectory(Path.GetDirectoryName(_temp)!);
-        File.WriteAllText(_temp, "null");
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        File.WriteAllText(SettingsPath, "null");
 
         SettingsStore.Load().Should().NotBeNull();
     }

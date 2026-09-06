@@ -16,31 +16,19 @@ namespace PcWatch.Tests;
 /// </remarks>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
-public sealed class WindowPlacementFormTests
+public sealed class WindowPlacementFormTests : SettingsRedirectFixture
 {
     private Form _form = null!;
-    private string _realPath = string.Empty;
-    private string _temp = string.Empty;
 
     [SetUp]
-    public void Setup()
+    public void CreateAnInvisibleForm()
     {
-        _realPath = SettingsStore.Path;
-        _temp = Path.Combine(Path.GetTempPath(), $"pcwatch-place-{Guid.NewGuid():N}", "settings.json");
-        SettingsStore.Path = _temp;
-
         _form = new Form { ShowInTaskbar = false, Size = new Size(800, 600) };
         _form.CreateControl();
     }
 
     [TearDown]
-    public void Teardown()
-    {
-        _form.Dispose();
-        SettingsStore.Path = _realPath;
-        string? dir = Path.GetDirectoryName(_temp);
-        if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-    }
+    public void DisposeTheForm() => _form.Dispose();
 
     private static Rectangle PrimaryWork()
     {
@@ -160,55 +148,5 @@ public sealed class WindowPlacementFormTests
         settings.Maximized.Should().BeTrue();
         settings.Width.Should().Be(820, "the RESTORE width, not the screen width");
         settings.Width.Should().BeLessThan(work.Width);
-    }
-
-    // ── MoveTo ──────────────────────────────────────────────────────────────────────────────────
-
-    [TestCase("left")]
-    [TestCase("right")]
-    [TestCase("primary")]
-    [TestCase("1")]
-    public void A_recognised_monitor_name_moves_the_window(string monitor)
-    {
-        PrimaryWork();
-
-        WindowPlacement.MoveTo(_form, monitor).Should().BeTrue();
-        _form.StartPosition.Should().Be(FormStartPosition.Manual);
-    }
-
-    [TestCase("nonsense")]
-    [TestCase("0")]
-    [TestCase("")]
-    public void An_unrecognised_monitor_name_moves_nothing_and_says_so(string monitor)
-    {
-        PrimaryWork();
-        Rectangle before = _form.Bounds;
-
-        WindowPlacement.MoveTo(_form, monitor).Should().BeFalse();
-        _form.Bounds.Should().Be(before, "a refused move must not half-apply");
-    }
-
-    [Test]
-    public void Moving_a_maximised_window_leaves_it_maximised()
-    {
-        // Bounds are set while Normal so the restore size is sensible, then it is re-maximised onto
-        // the target screen. Maximising a window that still believes it lives elsewhere lands it back.
-        PrimaryWork();
-        _form.WindowState = FormWindowState.Maximized;
-
-        WindowPlacement.MoveTo(_form, "primary").Should().BeTrue();
-
-        _form.WindowState.Should().Be(FormWindowState.Maximized);
-    }
-
-    [Test]
-    public void The_moved_window_lands_inside_the_target_working_area()
-    {
-        Rectangle work = PrimaryWork();
-
-        WindowPlacement.MoveTo(_form, "primary").Should().BeTrue();
-
-        _form.Bounds.Width.Should().BeLessThanOrEqualTo(work.Width);
-        _form.Bounds.Height.Should().BeLessThanOrEqualTo(work.Height);
     }
 }

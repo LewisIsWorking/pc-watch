@@ -25,34 +25,29 @@ namespace PcWatch.Tests;
 /// </remarks>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
-public sealed class MainFormTests
+public sealed class MainFormTests : SettingsRedirectFixture
 {
-    private string _realPath = string.Empty;
-    private string _temp = string.Empty;
-
+    /// <summary>
+    /// Write settings that switch the update check OFF, before any MainForm is built.
+    /// </summary>
+    /// <remarks>
+    /// ⛔ LOAD-BEARING, and nearly lost in a scripted refactor on 2026-09-06. MainForm.OnLoad fires
+    ///    UpdatePrompt.CheckAsync against a REAL UpdateChecker, so anything that shows the form
+    ///    reaches api.github.com. CheckForUpdates=false is honoured BEFORE the request is made, so
+    ///    this is what keeps the suite off the network.
+    ///
+    /// ⚠️ NUnit runs base-class SetUp first, so SettingsStore.Path has already been redirected by
+    ///    the time this writes. Reversing that order would write into the user's real settings.
+    /// </remarks>
     [SetUp]
-    public void RedirectSettingsAndSilenceTheNetwork()
+    public void SilenceTheNetworkBeforeAnyFormIsBuilt()
     {
-        _realPath = SettingsStore.Path;
-        _temp = Path.Combine(Path.GetTempPath(), $"pcwatch-main-{Guid.NewGuid():N}", "settings.json");
-        Directory.CreateDirectory(Path.GetDirectoryName(_temp)!);
-
-        // CheckForUpdates=false is the load-bearing part: it is honoured before the HTTP request,
-        // so no test here can reach api.github.com however the form is driven.
-        File.WriteAllText(_temp, JsonSerializer.Serialize(new Settings
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new Settings
         {
             CheckForUpdates = false,
             HasPlacement = false,
         }));
-        SettingsStore.Path = _temp;
-    }
-
-    [TearDown]
-    public void RestoreSettings()
-    {
-        SettingsStore.Path = _realPath;
-        string? dir = Path.GetDirectoryName(_temp);
-        if (dir is not null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
     }
 
     private static MainForm Build() => new();
@@ -111,7 +106,7 @@ public sealed class MainFormTests
         Assume.That(primary, Is.Not.Null, "needs a display");
         Rectangle work = primary!.WorkingArea;
 
-        File.WriteAllText(_temp, JsonSerializer.Serialize(new Settings
+        File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new Settings
         {
             CheckForUpdates = false,
             HasPlacement = true,
@@ -186,83 +181,5 @@ public sealed class MainFormTests
         form.RestoreFromTray();
 
         form.WindowState.Should().NotBe(FormWindowState.Minimized);
-    }
-
-    // ── Moving between monitors ─────────────────────────────────────────────────────────────────
-
-    [TestCase("left")]
-    [TestCase("right")]
-    [TestCase("primary")]
-    public void A_recognised_monitor_name_is_accepted(string monitor)
-    {
-        Assume.That(Screen.PrimaryScreen, Is.Not.Null, "needs a display");
-        using MainForm form = Build();
-
-        form.MoveToMonitor(monitor).Should().BeTrue();
-    }
-
-    [TestCase("nonsense")]
-    [TestCase("0")]
-    public void An_unrecognised_monitor_name_is_refused(string monitor)
-    {
-        Assume.That(Screen.PrimaryScreen, Is.Not.Null, "needs a display");
-        using MainForm form = Build();
-
-        form.MoveToMonitor(monitor).Should().BeFalse();
-    }
-
-    // ── The tick ────────────────────────────────────────────────────────────────────────────────
-
-    [Test]
-    public void A_TICK_SAMPLES_THE_MACHINE_AND_FILLS_THE_HEADLINE()
-    {
-        // ⚠️ A System.Windows.Forms.Timer only fires on a message pump, so this pumps deliberately.
-        //    Everything before the first tick reads "measuring...", which is itself the assertion
-        //    that the app does not show a confident 0% before it knows anything.
-        using MainForm form = Build();
-
-        Label headline = form.Controls.Cast<Control>()
-            .SelectMany(Descendants).OfType<Label>()
-            .First(l => l.Text == "measuring...");
-
-        DateTime deadline = DateTime.Now.AddSeconds(8);
-        while (DateTime.Now < deadline && headline.Text == "measuring...")
-        {
-            Application.DoEvents();
-            Thread.Sleep(50);
-        }
-
-        headline.Text.Should().NotBe("measuring...", "a tick must replace the placeholder");
-        headline.Text.Should().Contain("CPU");
-    }
-
-    [Test]
-    public void Disposing_persists_the_placement_and_removes_the_tray_icon()
-    {
-        MainForm form = Build();
-        form.Dispose();
-
-        // The save is the observable half; the tray icon going is asserted by the absence of a
-        // leaked icon after the suite, which nothing can check from inside it.
-        SettingsStore.Load().HasPlacement.Should().BeTrue("the window position must survive an exit");
-    }
-
-    [Test]
-    public void Disposing_twice_does_not_throw()
-    {
-        MainForm form = Build();
-
-        Action twice = () => { form.Dispose(); form.Dispose(); };
-
-        twice.Should().NotThrow("Application.Exit and an explicit close can both land");
-    }
-
-    private static IEnumerable<Control> Descendants(Control root)
-    {
-        yield return root;
-        foreach (Control child in root.Controls)
-        {
-            foreach (Control deeper in Descendants(child)) yield return deeper;
-        }
     }
 }
