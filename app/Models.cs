@@ -70,6 +70,34 @@ public sealed record MachineStats(
 /// </remarks>
 public sealed record ProcessGroup(string Name, int Count, double Percent, double MemoryMb);
 
+/// <summary>
+/// How the busy time divides between your programs and the kernel.
+/// </summary>
+/// <remarks>
+/// ⭐ 2026-09-07. Added because a bare total is nearly useless: "100%" says there is no headroom
+///   without saying what kind of work filled it, and the two have completely different remedies.
+///
+///   USER time is your programs computing. If it is high, the process table names the culprit and
+///   closing something helps.
+///
+///   KERNEL time is the operating system working on their behalf: file and network I/O, drivers,
+///   antivirus scanning, virtualisation overhead. It is still ATTRIBUTED to the process that caused
+///   it (Process.TotalProcessorTime is user + privileged), so the table still names who, but the
+///   remedy is different - you change what the program is doing, not whether it runs.
+///
+/// ⚠️ Measured on this machine at saturation: user 52%, kernel 48%. Half a machine in kernel time is
+///    a fact worth surfacing, and no amount of staring at a process list reveals it.
+/// </remarks>
+public sealed record CpuSplit(double UserPercent, double KernelPercent)
+{
+    /// <summary>True when the kernel is doing at least as much work as the programs.</summary>
+    /// <remarks>
+    /// Worth calling out rather than leaving the reader to compare two numbers. An even split is
+    /// unusual on a desktop and points at I/O, security software or a hypervisor.
+    /// </remarks>
+    public bool KernelHeavy => KernelPercent >= UserPercent && KernelPercent > 0;
+}
+
 public sealed record Snapshot(
     double? TotalCpuPercent,
     int LogicalCores,
@@ -81,7 +109,8 @@ public sealed record Snapshot(
     GpuReading? Gpu = null,
     PowerReport? Power = null,
     double? SystemDriveFreeGb = null,
-    double? SystemDriveTotalGb = null)
+    double? SystemDriveTotalGb = null,
+    CpuSplit? Cpu = null)
 {
     /// <summary>Share of the measured load that <see cref="TopProcesses"/> actually explains.</summary>
     /// <remarks>

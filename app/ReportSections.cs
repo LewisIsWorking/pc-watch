@@ -23,6 +23,18 @@ internal static class ReportSections
     {
         string cpu = snapshot.TotalCpuPercent is { } v ? $"{v:N0}%" : "measuring...";
         sb.AppendLine($"  CPU   {cpu}   across {snapshot.LogicalCores} logical cores");
+
+        // ⭐ THE SPLIT, because a bare total says there is no headroom without saying what filled it.
+        //   User time is your programs computing; kernel time is the OS working on their behalf -
+        //   I/O, drivers, antivirus, virtualisation. Same number, different remedy.
+        if (snapshot.Cpu is { } split)
+        {
+            string note = split.KernelHeavy
+                ? "   <- kernel-heavy: I/O, drivers, antivirus or a VM, not raw computation"
+                : "";
+            sb.AppendLine($"        {split.UserPercent:N0}% your programs, "
+                        + $"{split.KernelPercent:N0}% the operating system{note}");
+        }
         sb.AppendLine($"  RAM   {snapshot.Machine.RamUsedGb:N1} / {snapshot.Machine.RamTotalGb:N1} GB  ({snapshot.Machine.RamPercent:N0}%)");
 
         UptimeFacts up = snapshot.Machine.Uptime;
@@ -118,79 +130,5 @@ internal static class ReportSections
                         + $"{PowerReport.OtherComponentsWatts:N0} W for board, drives and fans");
         }
         sb.AppendLine();
-    }
-
-    /// <summary>
-    /// Several processes sharing one name, added up.
-    /// </summary>
-    /// <remarks>
-    /// ⭐ Without this, 56 build workers at 0.2% each vanish below every top-N list while together
-    ///   accounting for more than everything shown above them.
-    /// </remarks>
-    public static void AppendByProgram(StringBuilder sb, Snapshot snapshot)
-    {
-        if (snapshot.Groups.Count == 0) return;
-
-        sb.AppendLine("  BY PROGRAM   (several processes sharing one name, added up)");
-        foreach (ProcessGroup g in snapshot.Groups)
-        {
-            sb.AppendLine($"   {g.Percent,6:N1}%  {g.Name,-24} x{g.Count,-4} {g.MemoryMb,8:N0} MB");
-        }
-        sb.AppendLine();
-    }
-
-    /// <summary>
-    /// What looks wrong, with ownership stated before any advice.
-    /// </summary>
-    /// <remarks>
-    /// ⛔ OWNERSHIP BEFORE ADVICE. A 16% emulator driven by a live agent session and an abandoned
-    ///    one look identical from the load figure; only one of them is safe to close.
-    /// </remarks>
-    public static void AppendSuspects(
-        StringBuilder sb, IReadOnlyList<Suspect> suspects, ProcessAncestry ancestry)
-    {
-        sb.AppendLine("  WHAT LOOKS WRONG");
-        foreach (Suspect s in suspects)
-        {
-            sb.AppendLine($"   * {s.Title}");
-
-            if (s.ProcessId is { } id && ancestry.OwnerLabelFor(id) is { } owner)
-            {
-                sb.AppendLine($"     {owner}");
-            }
-            foreach (string line in ReportRenderer.Wrap(s.Detail, 74))
-            {
-                sb.AppendLine($"     {line}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// The heaviest processes, as a share of the WHOLE machine.
-    /// </summary>
-    /// <remarks>
-    /// ⚠️ Raw per-process CPU on Windows runs to 100 x cores, so an unnormalised figure reads as
-    ///    1600% on a 16-thread machine. The coverage line below exists because a list that accounts
-    ///    for only a third of the load is telling you the answer is NOT in the list.
-    /// </remarks>
-    public static void AppendTopProcesses(StringBuilder sb, Snapshot snapshot)
-    {
-        sb.AppendLine();
-        sb.AppendLine("  TOP PROCESSES   (% of the WHOLE machine, not per-core)");
-
-        if (snapshot.ExplainedPercent is { } share)
-        {
-            double listed = snapshot.TopProcesses.Sum(p => p.Percent);
-            sb.Append($"   -> these {snapshot.TopProcesses.Count} account for {listed:N1}% of the "
-                    + $"{snapshot.TotalCpuPercent:N0}% in use ({share:N0}%).");
-            sb.AppendLine(share < 60 ? " Most load is spread below the cutoff." : string.Empty);
-        }
-
-        foreach (ProcessLoad p in snapshot.TopProcesses)
-        {
-            string name = p.Name.Length > 24 ? p.Name[..24] : p.Name;
-            string age = p.Started is { } s ? ReportRenderer.Age(DateTime.Now - s) : "-";
-            sb.AppendLine($"   {p.Percent,6:N1}%  {name,-24} {p.Id,7}  {p.MemoryMb,7:N0} MB  up {age}");
-        }
     }
 }

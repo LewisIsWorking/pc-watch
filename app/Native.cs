@@ -83,13 +83,21 @@ internal static partial class Native
     /// every load level, which is the worst kind of wrong: nothing ever looks off enough to check.
     /// Verified against the perf counter over matched 12-second windows, bias 1.1 / 0.0 / 0.1 points.
     /// </remarks>
-    public static (long Idle, long Total) GetCpuTicks()
+    /// <remarks>
+    /// ⭐ 2026-09-07: USER IS RETURNED TOO, and the signature changed rather than gaining an overload
+    ///   so that every call site had to be looked at. The split is worth having because a bare "100%"
+    ///   is nearly useless on its own: it says there is no headroom without saying what kind of work
+    ///   filled it. Measured on this machine at saturation, user 52% against KERNEL 48% - and half a
+    ///   machine spent in kernel time points at I/O, drivers, Defender or virtualisation overhead,
+    ///   none of which look like a busy process row.
+    /// </remarks>
+    public static (long Idle, long User, long Total) GetCpuTicks()
     {
         if (!GetSystemTimes(out long idle, out long kernel, out long user))
         {
             throw new Win32Exception(Marshal.GetLastWin32Error(), "GetSystemTimes failed");
         }
-        return (idle, kernel + user);
+        return (idle, user, kernel + user);
     }
 
     /// <summary>

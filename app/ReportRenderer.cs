@@ -72,9 +72,9 @@ public static class ReportRenderer
         if (snapshot.Power is { } power) ReportSections.AppendPower(sb, power);
         if (storage is not null) RenderStorage(sb, storage);
 
-        ReportSections.AppendByProgram(sb, snapshot);
-        ReportSections.AppendSuspects(sb, suspects, ancestry);
-        ReportSections.AppendTopProcesses(sb, snapshot);
+        ReportProcessSections.AppendByProgram(sb, snapshot);
+        ReportProcessSections.AppendSuspects(sb, suspects, ancestry);
+        ReportProcessSections.AppendTopProcesses(sb, snapshot);
         return sb.ToString();
     }
 

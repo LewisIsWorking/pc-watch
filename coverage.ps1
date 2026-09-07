@@ -36,11 +36,27 @@
 #>
 [CmdletBinding()]
 param(
-    # ⭐ A RATCHET. These are the measured values as of 2026-09-04, so any change that LOWERS
-    #   coverage fails immediately. Raise them as coverage improves; never lower them to make a
-    #   build pass. Target is 100/100.
-    [double]$MinimumLine = 92.2,
-    [double]$MinimumBranch = 91.1,
+    # ⭐ A RATCHET. Raise these as coverage improves; never lower them merely to get a green run.
+    #   Target is 100/100.
+    #
+    # ⛔ 2026-09-07: THESE FLOORS SIT BELOW THE TROUGH ON PURPOSE, AND THAT IS NOT SLOPPINESS.
+    #    The figures are NOT deterministic. One of the two suites is the in-app self-test, which
+    #    probes the LIVE machine, so which code it reaches depends on what the machine is doing.
+    #    Measured over five consecutive runs, same commit, nothing changed:
+    #
+    #      line     92.1  92.2  92.2  92.3  92.1     (3086-3092 of 3351)
+    #      branch   90.6  90.8  90.8  90.8  90.9     (1216-1244 branches seen)
+    #
+    #    The branch floor was previously 91.1, taken from a single lucky run. That is ABOVE the
+    #    whole observed range, so it failed on ordinary variance rather than on any regression. A
+    #    gate that cries wolf gets routed around with -MinimumBranch 0, at which point it protects
+    #    nothing at all.
+    #
+    #    So the floor belongs just under the trough, and a real regression is a DROP OF A POINT OR
+    #    MORE, not a tenth. If you want a tighter gate, make the measurement deterministic first -
+    #    the noise is in the self-test's dependence on live machine state, not in the arithmetic.
+    [double]$MinimumLine = 92.0,
+    [double]$MinimumBranch = 90.5,
     [string]$Tfm = 'net10.0-windows'
 )
 
