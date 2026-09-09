@@ -55,10 +55,31 @@ param(
     #    So the floor belongs just under the trough, and a real regression is a DROP OF A POINT OR
     #    MORE, not a tenth. If you want a tighter gate, make the measurement deterministic first -
     #    the noise is in the self-test's dependence on live machine state, not in the arithmetic.
-    [double]$MinimumLine = 92.0,
-    [double]$MinimumBranch = 90.5,
+    # ⛔⛔ 2026-09-09: THE FIGURE IS HARDWARE-DEPENDENT, WHICH IS WORSE THAN THE NOISE ABOVE.
+    #    Moving to a machine with no NVIDIA GPU dropped the SAME COMMIT from 92.2/90.7 to 90.8/87.3
+    #    while tests were being ADDED. Nothing regressed. GpuTelemetry went 73.2% -> 39.0% line and
+    #    100% -> 0.0% branch, and SystemHealth 100% -> 86.4%, because the NVML paths cannot execute
+    #    without nvml.dll. That is 48 lines, exactly the whole difference.
+    #
+    #    A single global floor therefore fails for a reason that has nothing to do with test quality,
+    #    and NO amount of test-writing can clear it. So the floor is chosen per hardware profile
+    #    below, each one measured on the machine it describes. Do not collapse them back into one
+    #    number: a figure that means different things on different machines is not a ratchet, it is
+    #    a coin toss with a threshold.
+    [double]$MinimumLine = 0,
+    [double]$MinimumBranch = 0,
     [string]$Tfm = 'net10.0-windows'
 )
+
+# Which hardware profile is this, and therefore which floor applies?
+$hasNvml = Test-Path (Join-Path $env:SystemRoot 'System32\nvml.dll')
+$profileName = if ($hasNvml) { 'NVIDIA GPU present' } else { 'no NVIDIA GPU (NVML absent)' }
+
+# Measured floors, each just under the observed trough for that profile.
+#   with NVML     line 92.1-92.3, branch 90.6-90.9   (RTX 3080 workstation, 2026-09-07)
+#   without NVML  line 90.8,      branch 87.3        (VMware VM, 2026-09-09)
+if ($MinimumLine -le 0) { $MinimumLine = if ($hasNvml) { 92.0 } else { 90.5 } }
+if ($MinimumBranch -le 0) { $MinimumBranch = if ($hasNvml) { 90.5 } else { 87.0 } }
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -159,6 +180,12 @@ Write-Host ('PRODUCTION CODE ONLY, BOTH SUITES MERGED' ) -ForegroundColor Cyan
 Write-Host ('  line   {0,6:N1}%  ({1} of {2})' -f $linePct, $lineHit, $lineTot)
 Write-Host ('  branch {0,6:N1}%  ({1} of {2})' -f $branchPct, $brHit, $brTot)
 Write-Host ('  {0} files, {1} uncovered lines' -f $files.Count, ($lineTot - $lineHit))
+
+# ⛔ ALWAYS PRINT THE PROFILE. The percentage is meaningless without it: the same commit measures
+#    92.2% with an NVIDIA GPU and 90.8% without, because NVML paths cannot run. A figure quoted with
+#    no hardware attached invites someone to compare two machines and call it a regression.
+Write-Host ('  hardware: {0}   floors {1}/{2}' -f $profileName, $MinimumLine, $MinimumBranch) `
+    -ForegroundColor DarkGray
 Write-Host ''
 
 $failed = $false

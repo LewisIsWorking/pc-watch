@@ -105,4 +105,34 @@ public sealed class MainFormLifecycleTests : SettingsRedirectFixture
 
         twice.Should().NotThrow("Application.Exit and an explicit close can both land");
     }
+
+    [Test]
+    public void A_VISIBLE_WINDOW_ACTUALLY_RENDERS_THE_REPORT_AND_SHOWS_ITS_TOP()
+    {
+        // ⚠️ Opacity 0 makes the window real to Windows while invisible to whoever is running the
+        //    suite. The report is only rebuilt when the window is genuinely visible - it is the
+        //    expensive part of a tick - so a form that was never shown skips this path entirely,
+        //    which is why every earlier test left it uncovered.
+        using MainForm form = Build();
+        form.Opacity = 0;
+        form.Show();
+
+        RichTextBox report = form.Controls.Cast<Control>()
+            .SelectMany(Descendants).OfType<RichTextBox>().First();
+
+        DateTime deadline = DateTime.Now.AddSeconds(10);
+        while (DateTime.Now < deadline && !report.Text.Contains("CPU", StringComparison.Ordinal))
+        {
+            Application.DoEvents();
+            Thread.Sleep(50);
+        }
+
+        report.Text.Should().Contain("CPU", "a visible window must be given the rendered report");
+        report.Text.Should().Contain("RAM");
+
+        // ⛔ THE REGRESSION. Preserving the scroll offset carried the view down as the report changed
+        //    length, silently hiding the RAM row. A header line scrolled out of sight reads as a
+        //    MISSING MEASUREMENT, not as a scrolled window, so the top is reasserted every tick.
+        report.SelectionStart.Should().Be(0, "the header must never scroll out of view");
+    }
 }
