@@ -81,7 +81,7 @@ internal static partial class Native
     /// ⚠️ kernelTime ALREADY INCLUDES idleTime. Busy work is (kernel + user) - idle over a total of
     /// (kernel + user). Treating kernel as exclusive of idle yields a number that looks plausible at
     /// every load level, which is the worst kind of wrong: nothing ever looks off enough to check.
-    /// Verified against the perf counter over matched 12-second windows, bias 1.1 / 0.0 / 0.1 points.
+    /// Verified 2026-09-02 against the perf counter, matched 12-second windows, bias 1.1 / 0.0 / 0.1.
     /// </remarks>
     /// <remarks>
     /// ⭐ 2026-09-07: USER IS RETURNED TOO, and the signature changed rather than gaining an overload

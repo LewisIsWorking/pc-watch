@@ -17,7 +17,7 @@ public sealed record PowerReport(double? CpuWatts, double? GpuWatts, double? Gpu
     /// </summary>
     /// <remarks>
     /// A flat allowance, not a measurement. On a desktop with several drives and a bank of fans this
-    /// is 50-80 W and does not vary much with load, so a constant is closer to the truth than
+    /// is 50-80 W (2026-09-02) and does not vary much with load, so a constant is closer to the truth
     /// pretending it is zero. Named rather than folded silently into the CPU figure.
     /// </remarks>
     public const double OtherComponentsWatts = 60;

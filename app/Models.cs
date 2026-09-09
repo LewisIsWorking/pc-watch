@@ -114,7 +114,7 @@ public sealed record Snapshot(
 {
     /// <summary>Share of the measured load that <see cref="TopProcesses"/> actually explains.</summary>
     /// <remarks>
-    /// Measured at 91% CPU with the top twelve summing to 47%: the list named a sixth of the problem
+    /// Measured 2026-09-02 at 91% CPU, top twelve summing to 47%: the list named a sixth of the problem
     /// while reading as a complete account. A list with no coverage figure cannot be told apart from
     /// a full one.
     /// </remarks>

@@ -77,7 +77,7 @@ public static class DashboardLayout
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // The report and the long-running list share the bottom row. A split rather than a stack:
-        // on a maximised 2048-wide window the report used two thirds of the width and left the rest
+        // measured 2026-09-02, on a maximised 2048-wide window the report used two thirds of the width
         // blank, and the kill list is the one part that needs to be clicked rather than read.
         var bottom = new TableLayoutPanel
         {
@@ -87,7 +87,7 @@ public static class DashboardLayout
             BackColor = Theme.Window,
             Margin = new Padding(0),
         };
-        // ⚠️ Both PROPORTIONAL. An Absolute 600 px right column collapsed to about 150 px in
+        // ⚠️ Both PROPORTIONAL. 2026-09-02: an Absolute 600 px right column collapsed to about 150 px in
         //    practice: a TableLayoutPanel shrinks whatever it must to satisfy the rest of the
         //    layout, and an absolute width is a request rather than a guarantee. Percentages divide
         //    the space predictably and scale with the window instead of fighting it.

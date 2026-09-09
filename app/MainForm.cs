@@ -40,7 +40,7 @@ public sealed class MainForm : Form
         Icon = LoadAppIcon();
 
         // ⚠️ AutoScaleMode.Font (the Form default) multiplies any size we assign by the ratio of
-        //    design-time to runtime font metrics. It shrank an explicit 880 px to 718 and clipped
+        //    design-time to runtime font metrics. 2026-09-02: it shrank an explicit 880 px to 718, clipping
         //    the process table. Controls here are docked and fonts are in points, so nothing needs
         //    auto-scaling - but see DashboardLayout.MeasuredClientSize: None is not sufficient alone.
         AutoScaleMode = AutoScaleMode.None;
@@ -122,7 +122,7 @@ public sealed class MainForm : Form
             var (word, worst) = SystemHealth.Overall(health);
 
             // ⚠️ POWER IS NOT IN THE HEADLINE. It used to be, and it inherited the headline's
-            //    severity colour - so a perfectly normal 244 W on a 5900X plus a 3080 rendered in
+            //    severity colour - so a normal 244 W on a 5900X plus a 3080 (2026-09-02) rendered in
             //    alarm red and read as a fault. Nothing here knows the PSU rating, so the app has no
             //    basis on which to call any wattage bad. It belongs with the other plain facts.
             _ui.Headline.Text = snapshot.TotalCpuPercent is { } v ? $"{v:N0}%  CPU     {word}" : "measuring...";

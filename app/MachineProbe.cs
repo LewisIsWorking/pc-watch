@@ -70,7 +70,7 @@ public sealed class MachineProbe
     /// </summary>
     /// <remarks>
     /// Read once. It cannot change while the process lives, and the alternative (Win32_Processor)
-    /// costs ~1.5 s to answer a question with a constant answer.
+    /// costs ~1.5 s to answer a question with a constant answer (measured 2026-09-02).
     /// </remarks>
     private static string ReadCpuName()
     {

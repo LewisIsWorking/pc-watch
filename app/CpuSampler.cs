@@ -96,7 +96,7 @@ public sealed class CpuSampler : IDisposable
         {
             // ⛔ EVERY Process must be disposed. Reading TotalProcessorTime opens a native handle,
             //    and the finalizer returns it slower than a one-second loop consumes them. Measured
-            //    in the PowerShell original: +24 handles per 40 s across ~400 processes a tick,
+            //    in the PowerShell original, 2026-09-02: +24 handles per 40 s across ~400 processes a tick,
             //    reaching the 10000-handle quota in about four hours.
             using (process)
             {
@@ -118,7 +118,7 @@ public sealed class CpuSampler : IDisposable
                 if (elapsed > 0 && _lastCpuSeconds.TryGetValue(id, out double before))
                 {
                     double burned = seconds - before;
-                    // ⚠️ Divide by core count. The raw figure is per-core and runs to 100 x cores.
+                    // ⚠️ Divide by core count. The raw figure is per-core and runs to 100 x cores (2026-09-02).
                     if (burned > 0) percent = Math.Round(100 * burned / elapsed / _cores, 1);
                 }
 
