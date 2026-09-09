@@ -72,17 +72,38 @@ running build from an abandoned one is the entire difficulty.
 Tracked by `coverage.ps1`, which enforces a ratchet floor. Target is 100% of production code, with
 generated code and both test suites excluded from the denominator.
 
-**92.1% line, 90.7% branch** as of 2026-09-06, across 295 tests.
+**350 tests** as of 2026-09-09. The percentage depends on the hardware, so it is quoted per profile:
 
-What is left is mostly not reachable rather than merely untested:
+| Machine | Line | Branch |
+|---|---|---|
+| RTX 3080 workstation (NVML present) | 92.2% | 90.7% |
+| VMware VM (no NVIDIA GPU) | 90.8% | 87.5% |
+
+⛔ **The same commit measures 1.4 points lower with no GPU, and nothing regressed.** `GpuTelemetry`
+goes 73.2% to 39.0% line and 100% to 0.0% branch, and `SystemHealth` 100% to 86.4%, because the NVML
+paths cannot execute without `nvml.dll`. That is 48 lines, exactly the whole difference.
+`coverage.ps1` therefore picks its floor per profile and **prints the profile with every result**.
+Never quote the percentage without the hardware, and never collapse the floors into one number.
+
+What is left is largely not reachable rather than merely untested:
 
 - `Program.Main` ends in `Application.Run`, which blocks for the life of the app. Its decisions were
   extracted (`WantsSelfTest`, `ArgumentValue`, ...) and are covered; the wiring itself is not.
 - Two `MessageBox.Show` calls, in `UpdatePrompt` and `LongRunningPanel`. A modal dialog does not
   fail a test, it HANGS it, so both were reduced to a single line with the decision either side
   extracted and covered.
-- Hardware paths this machine cannot exercise: the no-NVIDIA fallback in `GpuTelemetry`, and WMI
-  refusing in `MachineProbe`. The degradation CONTRACT is tested; the branch cannot be taken here.
+- **Permission-failure catch blocks**: the event log denied by policy (`SystemUptime`), the registry
+  key unreadable, and access denied in `ProcessKiller.Kill`. Two or three lines each.
+
+  ⚠️ The access-denied path is deliberately NOT tested. Reaching it means asking to kill a real
+  service process and relying on being refused, which passes only while the runner lacks the rights
+  and silently kills a service the day it runs elevated. That is a worse outcome than the three
+  uncovered lines it would buy.
+
+- Hardware paths a given machine cannot exercise, per the table above.
+
+The practical ceiling is therefore about 93-94% on the GPU machine. Past that, each further line
+costs either a design contortion or a test that is unsafe to run.
 
 ## Standards
 
