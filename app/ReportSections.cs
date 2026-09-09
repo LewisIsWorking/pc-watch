@@ -84,8 +84,11 @@ internal static class ReportSections
         IReadOnlyList<HealthIndicator> health = SystemHealth.Assess(snapshot);
         if (health.Count == 0) return;
 
-        var (word, _) = SystemHealth.Overall(health);
-        sb.AppendLine($"  HOW IT IS RUNNING: {word}   (worst PERFORMANCE indicator, not an average)");
+        // ⛔ THE DRIVER IS NAMED, and that is the whole point. "FLAT OUT" under a line reading
+        //    "CPU 49%" reads as the app contradicting itself; "FLAT OUT: Memory" reads as an answer.
+        var (word, _, driver) = SystemHealth.Overall(health);
+        string headline = driver is null ? word : $"{word}: {driver}";
+        sb.AppendLine($"  HOW IT IS RUNNING: {headline}   (worst PERFORMANCE indicator, not an average)");
         foreach (HealthIndicator h in health.Where(h => h.Kind == IndicatorKind.Performance))
         {
             sb.AppendLine($"   {h.Name,-7} {h.Value,-34} {h.Verdict}");

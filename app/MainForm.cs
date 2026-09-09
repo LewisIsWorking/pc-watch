@@ -119,13 +119,22 @@ public sealed class MainForm : Form
             _tray.Text = TrayIconRenderer.Tooltip(snapshot);
 
             IReadOnlyList<HealthIndicator> health = SystemHealth.Assess(snapshot);
-            var (word, worst) = SystemHealth.Overall(health);
+            var (word, worst, driver) = SystemHealth.Overall(health);
+
+            // ⛔ 2026-09-09, REPORTED BY LEWIS: this line read "49%  CPU     FLAT OUT". Both halves
+            //    were correct and putting them side by side was not. The percentage and the verdict
+            //    sit adjacent with nothing between them, so the verdict attaches itself to the
+            //    nearest number - and it was MEMORY that was flat out, not the CPU at 49%.
+            //
+            //    Naming the driver is what separates them. A verdict with no subject gets given one
+            //    by whoever reads it.
+            string verdict = driver is null ? word : $"{word}: {driver}";
 
             // ⚠️ POWER IS NOT IN THE HEADLINE. It used to be, and it inherited the headline's
             //    severity colour - so a normal 244 W on a 5900X plus a 3080 (2026-09-02) rendered in
             //    alarm red and read as a fault. Nothing here knows the PSU rating, so the app has no
             //    basis on which to call any wattage bad. It belongs with the other plain facts.
-            _ui.Headline.Text = snapshot.TotalCpuPercent is { } v ? $"{v:N0}%  CPU     {word}" : "measuring...";
+            _ui.Headline.Text = snapshot.TotalCpuPercent is { } v ? $"{v:N0}%  CPU     {verdict}" : "measuring...";
             _ui.Headline.ForeColor = Theme.ForSeverity(worst);
 
             string power = snapshot.Power?.EstimatedSystemWatts is { } watts ? $"~{watts:N0} W   -   " : "";

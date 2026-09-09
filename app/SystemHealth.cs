@@ -86,13 +86,14 @@ public static class SystemHealth
     /// Not an average. A box with 100% CPU and everything else idle is not "good with a caveat" -
     /// it is unusable, and averaging would hide exactly the reading worth acting on.
     /// </remarks>
-    public static (string Word, Severity Severity) Overall(IReadOnlyList<HealthIndicator> indicators)
+    public static (string Word, Severity Severity, string? Driver) Overall(
+        IReadOnlyList<HealthIndicator> indicators)
     {
         // ⚠️ PERFORMANCE indicators only. Capacity problems are real but they are not what "how is
         //    this machine running" asks, and letting a 3%-free disk say STRUGGLING while the CPU sat
         //    at 54% and nothing was paging was simply wrong. Capacity is reported by Warnings().
         var performance = indicators.Where(i => i.Kind == IndicatorKind.Performance).ToList();
-        if (performance.Count == 0) return ("measuring", Severity.Low);
+        if (performance.Count == 0) return ("measuring", Severity.Low, null);
 
         Severity worst = performance.Max(i => i.Severity);
         // ⚠️ 2026-09-02: "STRUGGLING" was the High word, and it implies a FAULT. A machine running 24
@@ -106,7 +107,23 @@ public static class SystemHealth
             Severity.Medium => "WORKING HARD",
             _ => "HEALTHY",
         };
-        return (word, worst);
+
+        // ⛔ 2026-09-09, REPORTED BY LEWIS: "my PC is sitting at like 49% but it still says FLAT
+        //    OUT". Both readings were correct and the pairing was not. The verdict is the WORST
+        //    performance indicator, which was Memory, but "FLAT OUT" is CPU-shaped language sitting
+        //    directly under a line reading "CPU 49%", so it reads as the app contradicting itself.
+        //
+        //    A verdict that names no subject gets attached to the nearest number. So the driver is
+        //    named whenever there is something to name, and the reader can see at a glance that the
+        //    CPU is not the thing that is flat out.
+        //
+        // ⚠️ Named only when the news is bad. "HEALTHY - CPU" would imply the other indicators are
+        //    NOT healthy, which is the opposite of what a Low worst-case means.
+        string? driver = worst == Severity.Low
+            ? null
+            : performance.First(i => i.Severity == worst).Name;
+
+        return (word, worst, driver);
     }
 
     /// <summary>

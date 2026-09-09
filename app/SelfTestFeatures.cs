@@ -82,12 +82,12 @@ public static class SelfTestFeatures
         r.Check("100% CPU with everything else idle is not 'healthy'", () =>
         {
             var indicators = SystemHealth.Assess(Sample(100));
-            var (word, severity) = SystemHealth.Overall(indicators);
+            var (word, severity, _) = SystemHealth.Overall(indicators);
             if (severity != Severity.High) throw new Exception($"graded {severity} ({word})");
         });
         r.Check("a quiet machine reads healthy", () =>
         {
-            var (word, _) = SystemHealth.Overall(SystemHealth.Assess(Sample(5)));
+            var (word, _, _) = SystemHealth.Overall(SystemHealth.Assess(Sample(5)));
             if (word != "HEALTHY") throw new Exception(word);
         });
         r.Check("memory at 95% is High even when CPU is idle", () =>
@@ -101,7 +101,7 @@ public static class SelfTestFeatures
         r.Check("a nearly-full disk does NOT make a calm machine read as STRUGGLING", () =>
         {
             Snapshot calm = SampleWithDisk(totalCpu: 20, freeGb: 55, totalGb: 1861);
-            var (word, severity) = SystemHealth.Overall(SystemHealth.Assess(calm));
+            var (word, severity, _) = SystemHealth.Overall(SystemHealth.Assess(calm));
             if (severity == Severity.High) throw new Exception($"graded {word} on disk space alone");
         });
         r.Check("...but the nearly-full disk is still reported, as a warning", () =>
