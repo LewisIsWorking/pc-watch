@@ -130,7 +130,13 @@ public sealed class DiskScanner
             // floor rather than an exact figure, which the UI states.
         }
 
-        if (depth is > 0 and <= 2) found.Add(new FolderSize(path, total));
+        // ⛔ 2026-09-10. THIS READ `depth is > 0 and <= 2`, IGNORING Depth ENTIRELY. Depth is a public
+        //    init property documented as the cutoff, and Walk's own summary says "recording folders
+        //    down to Depth", so `new DiskScanner { Depth = 4 }` compiled, read as configured, and
+        //    silently kept the hardcoded 2. It agreed with the documentation only because the default
+        //    happens to BE 2 - which is precisely what made it invisible: every existing caller got
+        //    the right answer for the wrong reason.
+        if (depth > 0 && depth <= Depth) found.Add(new FolderSize(path, total));
         return total;
     }
 }

@@ -70,14 +70,45 @@ public sealed class SystemHealthTests
     }
 
     [Test]
-    public void A_HOT_GPU_names_the_GPU()
+    public void A_HOT_GPU_SAYS_RUNNING_HOT_NOT_FLAT_OUT()
     {
+        // ⛔ A card at 88 C while only 40% busy is not flat out, and the difference is not pedantry:
+        //    "FLAT OUT" tells you to stop giving it work, when what it needs is airflow. Wrong word,
+        //    wrong remedy.
         var hot = new GpuReading("RTX 3080", 320, 340, 40, 88);
 
-        var (_, severity, driver) = Verdict(Snapshot(cpu: 20, gpu: hot));
+        var (word, severity, driver) = Verdict(Snapshot(cpu: 20, gpu: hot));
 
         severity.Should().Be(Severity.High, "84 C and above is throttling territory");
         driver.Should().Be("GPU", "a hot GPU on an idle machine must not read as a busy CPU");
+        word.Should().Be("RUNNING HOT");
+        word.Should().NotBe("FLAT OUT", "the card is only 40% busy");
+    }
+
+    [Test]
+    public void A_FULLY_LOADED_but_COOL_GPU_is_only_WORKING_HARD()
+    {
+        // The other side: 95% busy at 60 C is genuinely load, and must NOT say RUNNING HOT.
+        var busy = new GpuReading("RTX 3080", 320, 340, 95, 60);
+
+        var (word, severity, driver) = Verdict(Snapshot(cpu: 20, gpu: busy));
+
+        severity.Should().Be(Severity.Medium);
+        word.Should().Be("WORKING HARD", "a cool card under load is not a heat problem");
+        driver.Should().Be("GPU");
+    }
+
+    [Test]
+    public void A_hot_GPU_beats_a_busy_CPU_and_keeps_its_own_word()
+    {
+        // Both High is impossible here (CPU High needs >= 90), so this pins that the WORD follows
+        // the indicator that actually won, not whichever happens to be listed first.
+        var hot = new GpuReading("RTX 3080", 320, 340, 40, 90);
+
+        var (word, _, driver) = Verdict(Snapshot(cpu: 70, gpu: hot));
+
+        driver.Should().Be("GPU", "High beats Medium");
+        word.Should().Be("RUNNING HOT", "the CPU's WORKING HARD must not overwrite it");
     }
 
     // ── When there is nothing to name ───────────────────────────────────────────────────────────

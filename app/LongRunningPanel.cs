@@ -73,9 +73,16 @@ public sealed class LongRunningPanel : UserControl
     /// Refresh the rows, preserving the selection.
     /// </summary>
     /// <remarks>
-    /// Rebuilt in place with BeginUpdate rather than cleared and re-added, because this runs once a
-    /// second: a naive Clear() steals the selection every tick and the Kill button can never be
-    /// reached. Selection is restored by PID, not by row index, since the sort order moves.
+    /// ⛔ 2026-09-10, CORRECTED. This said "rebuilt in place rather than cleared and re-added",
+    /// which is not what happens: the list IS cleared and re-added, inside BeginUpdate/EndUpdate.
+    ///
+    /// The fix for the selection was never to avoid Clear(). It was to CAPTURE the selected pid
+    /// first and restore it afterwards. This runs once a second, so a bare Clear() would steal the
+    /// selection every tick and the Kill button could never be reached; restoring is by PID rather
+    /// than row index because the memory sort moves rows underneath the user.
+    ///
+    /// ⚠️ The old wording would have sent someone hunting for an in-place update that does not
+    /// exist, or "fixing" the Clear() that is doing nothing wrong.
     /// </remarks>
     public void Update(IReadOnlyList<ProcessLoad> processes)
     {

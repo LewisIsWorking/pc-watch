@@ -13,8 +13,19 @@ namespace PcWatch;
 public enum IndicatorKind { Performance, Capacity }
 
 /// <summary>One graded aspect of how the machine is running.</summary>
+/// <param name="HeadlineWord">
+/// Overrides the generic severity word when this indicator is the worst one.
+/// </param>
+/// <remarks>
+/// ⛔ 2026-09-09. HeadlineWord exists because the severity words describe LOAD, and not every High
+///    reading is about load. The GPU grades High on TEMPERATURE, so a card at 88 C while only 40%
+///    busy was announced as "FLAT OUT" - which is not merely imprecise, it points at the wrong
+///    remedy. Flat out means "stop giving it work"; running hot means "check your fans". Any
+///    indicator whose worst state is not about load must say its own word.
+/// </remarks>
 public sealed record HealthIndicator(
-    string Name, string Value, Severity Severity, string Verdict, IndicatorKind Kind = IndicatorKind.Performance);
+    string Name, string Value, Severity Severity, string Verdict,
+    IndicatorKind Kind = IndicatorKind.Performance, string? HeadlineWord = null);
 
 /// <summary>
 /// "How well is this PC running" - as several named indicators, never a single mystery score.
@@ -57,12 +68,17 @@ public static class SystemHealth
 
         if (snapshot.Gpu is { } gpu)
         {
+            // ⛔ The GPU's High state is about HEAT, not load, so it carries its own headline word.
+            //    "FLAT OUT" on a card that is 40% busy and 88 C sends the reader to close programs
+            //    when the actual problem is airflow. Different cause, different fix, different word.
+            bool hot = gpu.TemperatureC >= 84;
             list.Add(new HealthIndicator("GPU",
                 $"{gpu.UtilisationPercent}%, {gpu.Watts:N0} W, {gpu.TemperatureC} C",
-                gpu.TemperatureC >= 84 ? Severity.High : gpu.UtilisationPercent >= 90 ? Severity.Medium : Severity.Low,
-                gpu.TemperatureC >= 84 ? "running hot - it will be throttling"
+                hot ? Severity.High : gpu.UtilisationPercent >= 90 ? Severity.Medium : Severity.Low,
+                hot ? "running hot - it will be throttling"
                 : gpu.UtilisationPercent >= 90 ? "fully loaded"
-                : "idle or light"));
+                : "idle or light",
+                HeadlineWord: hot ? "RUNNING HOT" : null));
         }
 
         if (snapshot.SystemDriveFreeGb is { } freeGb && snapshot.SystemDriveTotalGb is { } totalGb && totalGb > 0)
@@ -119,9 +135,13 @@ public static class SystemHealth
         //
         // ⚠️ Named only when the news is bad. "HEALTHY - CPU" would imply the other indicators are
         //    NOT healthy, which is the opposite of what a Low worst-case means.
-        string? driver = worst == Severity.Low
-            ? null
-            : performance.First(i => i.Severity == worst).Name;
+        HealthIndicator leader = performance.First(i => i.Severity == worst);
+        string? driver = worst == Severity.Low ? null : leader.Name;
+
+        // ⛔ 2026-09-09. An indicator whose worst state is not about LOAD supplies its own word. The
+        //    GPU grades High on temperature, and "FLAT OUT" there points at the wrong remedy: it
+        //    says stop giving it work, when what is needed is airflow.
+        if (driver is not null && leader.HeadlineWord is { } own) word = own;
 
         return (word, worst, driver);
     }
