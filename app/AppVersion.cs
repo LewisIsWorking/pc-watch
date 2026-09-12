@@ -16,10 +16,10 @@ public static class AppVersion
     /// <summary>Semantic version, e.g. "1.1.0". Comes from &lt;Version&gt; in the csproj.</summary>
     public static string Number { get; } = ReadInformationalVersion();
 
-    /// <summary>Runtime this build is running on, e.g. ".NET 11.0.0-preview.7".</summary>
+    /// <summary>Runtime this build is running on, e.g. ".NET 11.0.0-rc.1.26425.128".</summary>
     public static string Runtime { get; } = RuntimeInformation.FrameworkDescription;
 
-    /// <summary>What the UI shows: "v1.1.0 on .NET 11.0.0-preview.7".</summary>
+    /// <summary>What the UI shows: "v1.1.0 on .NET 11.0.0-rc.1.26425.128".</summary>
     public static string Display { get; } = $"v{Number} on {Runtime}";
 
     private static string ReadInformationalVersion()

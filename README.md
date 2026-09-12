@@ -125,12 +125,17 @@ You can see the split in the process list itself: `System` and `MsMpEng` show `u
 
 ## Building
 
-Needs the **.NET 11 SDK** (preview 7 or later). Nothing else — no NuGet dependencies at all.
+Needs the **.NET 11 SDK**. Built and tested against **RC 1** (`11.0.100-rc.1.26425.128`, released
+2026-09-08 with a go-live licence) as of 2026-09-12. Nothing else — no NuGet dependencies at all.
+
+The release is self-contained, so it ships whichever .NET 11 runtime the SDK that published it
+carries. **Publishing from a machine that still has preview 7 ships preview 7**, whatever this
+README says.
 
 ```powershell
 cd app
 dotnet publish -c Release -r win-x64 -o ..\bin      # self-contained, single file
-..\bin\PcWatch.exe --self-test                      # 63 checks, exit code 0 or 1
+..\bin\PcWatch.exe --self-test                      # 73 checks as of 2026-09-12, exit code 0 or 1
 pwsh -File check-no-leaks.ps1                       # scans the BUILT BINARY for private data
 ```
 
