@@ -37,7 +37,7 @@ public sealed class MainForm : Form
         ForeColor = Theme.Body;
         StartPosition = FormStartPosition.CenterScreen;
         ShowInTaskbar = true;
-        Icon = LoadAppIcon();
+        Icon = AppIcon.Load();
 
         // ⚠️ AutoScaleMode.Font (the Form default) multiplies any size we assign by the ratio of
         //    design-time to runtime font metrics. 2026-09-02: it shrank an explicit 880 px to 718, clipping
@@ -64,6 +64,9 @@ public sealed class MainForm : Form
             RestoreFromTray,
             () => _ui.Report.Text,
             () => _storage.Start(),
+            // ⚠️ Fire and forget deliberately: the menu handler must return so the menu closes, and
+            //    CheckNowAsync marshals its own result back to the message loop when it lands.
+            () => _ = UpdatePrompt.CheckNowAsync(this, _updates, _settings),
             () => { _tray.Visible = false; Application.Exit(); });
 
         _timer.Interval = 1000;
@@ -166,20 +169,6 @@ public sealed class MainForm : Form
             string message = $"PC Watch - sample failed: {ex.Message}";
             _tray.Text = message.Length > 127 ? message[..127] : message;
         }
-    }
-
-    private static Icon LoadAppIcon()
-    {
-        try
-        {
-            string path = Path.Combine(AppContext.BaseDirectory, "PcWatch.ico");
-            if (File.Exists(path)) return new Icon(path);
-        }
-        catch
-        {
-            // Fall through: a missing icon is cosmetic, not a reason to fail to start.
-        }
-        return SystemIcons.Application;
     }
 
     protected override void Dispose(bool disposing)

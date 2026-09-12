@@ -25,7 +25,7 @@ public static class TrayMenu
     ///   handler ran" passes just as happily when both items open the same program.
     /// </remarks>
     public static ContextMenuStrip Build(
-        Action show, Func<string> reportText, Action scanStorage, Action exit,
+        Action show, Func<string> reportText, Action scanStorage, Action checkUpdates, Action exit,
         Action<string>? launch = null, Action<string>? copyText = null)
     {
         Action<string> open = launch ?? Launch;
@@ -42,6 +42,12 @@ public static class TrayMenu
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Task Manager", null, (_, _) => open("taskmgr.exe"));
         menu.Items.Add("Resource Monitor", null, (_, _) => open("resmon.exe"));
+        menu.Items.Add(new ToolStripSeparator());
+
+        // ⭐ 2026-09-10. The app already checked on startup and said nothing when there was nothing
+        //   to say, which is right for an automatic check and leaves no way to ASK. It also meant
+        //   anyone who had opted out of automatic checks had no route to a deliberate one at all.
+        menu.Items.Add("Check for updates", null, (_, _) => checkUpdates());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => exit());
 

@@ -32,6 +32,63 @@ public static class UpdatePrompt
         owner.BeginInvoke(() => Show(update, settings));
     }
 
+    /// <summary>
+    /// Check because the user ASKED, from the tray menu.
+    /// </summary>
+    /// <remarks>
+    /// ⛔ 2026-09-10. THREE DELIBERATE DIFFERENCES from the startup check, each the opposite of what
+    ///    copying CheckAsync would have produced:
+    ///
+    ///      1. THE OPT-OUT DOES NOT APPLY. CheckForUpdates=false means "do not phone home on your
+    ///         own". Clicking a button labelled Check for updates IS that consent, and refusing
+    ///         silently would leave a dead-looking menu item and no way to find out why.
+    ///      2. SkipVersion DOES NOT APPLY. Dismissing 9.9.9 once must not make it invisible to
+    ///         someone explicitly asking what the latest version is.
+    ///      3. ⭐ A RESULT IS ALWAYS SHOWN, including "up to date" and including failure. The startup
+    ///         check is silent by design; a MANUAL check that is silent is indistinguishable from a
+    ///         broken button, and the user's next move is to click it again.
+    /// </remarks>
+    public static async Task CheckNowAsync(Form owner, UpdateChecker checker, Settings settings)
+    {
+        AvailableUpdate? update = await checker.CheckAsync();
+
+        if (!owner.IsHandleCreated) return;
+        owner.BeginInvoke(() => ShowManualResult(update, checker.LastError, settings));
+    }
+
+    /// <summary>
+    /// What a manual check says, given what came back.
+    /// </summary>
+    /// <remarks>
+    /// Separated from the dialog so the WORDING can be asserted. This is the only feedback the
+    /// button ever gives, so "up to date" and "could not check" must not be confusable.
+    /// </remarks>
+    internal static (string Message, bool IsOffer) ManualOutcome(AvailableUpdate? update, string? error)
+    {
+        if (update is not null) return (BuildMessage(update), true);
+
+        // ⚠️ AN ERROR IS NOT "UP TO DATE". Reporting a failed check as "you have the latest" is the
+        //    worst outcome available here: a confident answer produced by not knowing.
+        return error is not null
+            ? ($"Could not check for updates.\n\n{error}", false)
+            : ($"PC Watch {AppVersion.Number} is the latest version.", false);
+    }
+
+    private static void ShowManualResult(AvailableUpdate? update, string? error, Settings settings)
+    {
+        var (message, isOffer) = ManualOutcome(update, error);
+
+        if (!isOffer)
+        {
+            MessageBox.Show(message, "Check for updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        DialogResult choice = MessageBox.Show(
+            message, "Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+        Apply(choice, update!, settings, OpenInBrowser);
+    }
+
     private static void Show(AvailableUpdate update, Settings settings)
     {
         // ⚠️ THE ONLY UNTESTABLE LINE IN THIS FILE, and deliberately the only one. MessageBox.Show

@@ -91,5 +91,5 @@ public sealed class LongRunningPanelKillTests : LongRunningPanelFixture
         for (int i = 0; i < 20; i++) Panel.Update(same);
 
         List.Items.Cast<ListViewItem>().Should().HaveCount(2, "once a second, all day");
-}
+    }
 }

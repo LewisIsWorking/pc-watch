@@ -55,5 +55,5 @@ public sealed class UpdatePromptMessageTests
         string exact = new('y', 400);
 
         UpdatePrompt.Truncate(exact, 400).Should().Be(exact, "off by one here adds a stray ellipsis");
-}
+    }
 }

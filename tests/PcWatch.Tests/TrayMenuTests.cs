@@ -22,11 +22,12 @@ public sealed class TrayMenuTests
 {
     private static ContextMenuStrip Build(
         Action? show = null, Func<string>? report = null, Action? scan = null,
-        Action? exit = null, Action<string>? launch = null) =>
+        Action? checkUpdates = null, Action? exit = null, Action<string>? launch = null) =>
         TrayMenu.Build(
             show ?? (() => { }),
             report ?? (() => "report"),
             scan ?? (() => { }),
+            checkUpdates ?? (() => { }),
             exit ?? (() => { }),
             launch ?? (_ => { }));
 
@@ -42,7 +43,7 @@ public sealed class TrayMenuTests
             .Where(i => i is not ToolStripSeparator)
             .Select(i => i.Text)
             .Should().Equal("Show PC Watch", "Copy report", "Scan disk usage",
-                            "Task Manager", "Resource Monitor", "Exit");
+                            "Task Manager", "Resource Monitor", "Check for updates", "Exit");
     }
 
     [Test]
@@ -51,7 +52,38 @@ public sealed class TrayMenuTests
         using ContextMenuStrip menu = Build();
 
         menu.Items.Cast<ToolStripItem>().OfType<ToolStripSeparator>()
-            .Should().HaveCount(3, "grouping is what stops Exit sitting next to Show");
+            .Should().HaveCount(4, "grouping is what stops Exit sitting next to Show");
+    }
+
+    [Test]
+    public void Check_for_updates_is_never_adjacent_to_Exit()
+    {
+        // 2026-09-10. A misclick one row down from an update check must not close the app.
+        using ContextMenuStrip menu = Build();
+        var items = menu.Items.Cast<ToolStripItem>().ToList();
+
+        int check = items.FindIndex(i => i.Text == "Check for updates");
+        int exit = items.FindIndex(i => i.Text == "Exit");
+
+        (exit - check).Should().BeGreaterThan(1, "a separator must sit between them");
+    }
+
+    [Test]
+    public void Check_for_updates_invokes_ITS_OWN_callback_and_nothing_else()
+    {
+        // ⚠️ Asserts the destination, not just that something happened: the update check and Exit
+        //    are neighbours in the parameter list, and swapping two Action arguments compiles fine.
+        bool checkedUpdates = false, exited = false, scanned = false;
+        using ContextMenuStrip menu = Build(
+            checkUpdates: () => checkedUpdates = true,
+            exit: () => exited = true,
+            scan: () => scanned = true);
+
+        Item(menu, "Check for updates").PerformClick();
+
+        checkedUpdates.Should().BeTrue();
+        exited.Should().BeFalse("checking for updates must never close the app");
+        scanned.Should().BeFalse();
     }
 
     [Test]

@@ -82,5 +82,5 @@ public sealed class WindowPlacementMoveTests
 
         _form.Bounds.Width.Should().BeLessThanOrEqualTo(work.Width);
         _form.Bounds.Height.Should().BeLessThanOrEqualTo(work.Height);
-}
+    }
 }

@@ -66,7 +66,7 @@ public sealed class TrayMenuCopyTests
         int reads = 0;
 
         using ContextMenuStrip menu = TrayMenu.Build(
-            () => { }, () => { reads++; return "text"; }, () => { }, () => { },
+            () => { }, () => { reads++; return "text"; }, () => { }, () => { }, () => { },
             launch: _ => { }, copyText: _ => { });
 
         reads.Should().Be(0, "building is not copying");
@@ -81,7 +81,7 @@ public sealed class TrayMenuCopyTests
         var copied = new List<string>();
 
         using ContextMenuStrip menu = TrayMenu.Build(
-            () => { }, () => current, () => { }, () => { },
+            () => { }, () => current, () => { }, () => { }, () => { },
             launch: _ => { }, copyText: copied.Add);
 
         current = "second";
@@ -98,7 +98,7 @@ public sealed class TrayMenuCopyTests
         var copied = new List<string>();
 
         using ContextMenuStrip menu = TrayMenu.Build(
-            () => { }, () => "report body", () => { }, () => { },
+            () => { }, () => "report body", () => { }, () => { }, () => { },
             launch: _ => { }, copyText: copied.Add);
 
         menu.Items.Cast<ToolStripItem>().Single(i => i.Text == "Copy report").PerformClick();
