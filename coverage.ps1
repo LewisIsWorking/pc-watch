@@ -112,16 +112,31 @@ $unit = Join-Path $out 'unit.cobertura.xml'
 $live = Join-Path $out 'selftest.cobertura.xml'
 $merged = Join-Path $out 'merged.cobertura.xml'
 
+# ⛔ 2026-09-12. THIS SCRIPT COULD REPORT "coverage floors met" WITH FAILING TESTS IN BOTH SUITES.
+#    Two holes, found while verifying the .NET 11 RC1 move:
+#
+#      1. NEITHER TEST RUN'S EXIT CODE WAS CHECKED. Each suite was judged only by whether a coverage
+#         report appeared - and a suite that fails still writes one. A red suite measured green.
+#      2. OLD REPORTS WERE NEVER CLEARED. coverage-output/ persists between runs, so a run that wrote
+#         NO report still passed `Test-Path` on the previous run's file, and the percentage printed
+#         was yesterday's.
+#
+#    dotnet-coverage propagates the child's exit code faithfully (probed: child 7 -> 7, 0 -> 0), so
+#    checking $LASTEXITCODE after it is a real check rather than one that can never fire.
+Remove-Item -LiteralPath $unit, $live, $merged -ErrorAction SilentlyContinue
+
 Write-Host 'running unit tests under coverage' -ForegroundColor Cyan
 dotnet-coverage collect -f cobertura -o $unit -- `
     dotnet test (Join-Path $root 'tests/PcWatch.Tests/PcWatch.Tests.csproj') `
     -p:PcWatchTfm=$Tfm -p:CoverageBuild=true --no-build --nologo -v q | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "unit tests FAILED (exit $LASTEXITCODE) - coverage of a red suite is not a result" }
 if (-not (Test-Path $unit)) { throw 'unit coverage produced no report' }
 
 Write-Host 'running the in-app self-test under coverage' -ForegroundColor Cyan
 $exe = Join-Path $root "tests/PcWatch.Tests/bin/Debug/$Tfm/PcWatch.exe"
 if (-not (Test-Path $exe)) { throw "built app not found at $exe" }
 dotnet-coverage collect -f cobertura -o $live -- $exe --self-test | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "self-test FAILED (exit $LASTEXITCODE) - run PcWatch.exe --self-test to see which check" }
 if (-not (Test-Path $live)) { throw 'self-test coverage produced no report' }
 
 Write-Host 'merging both suites' -ForegroundColor Cyan
