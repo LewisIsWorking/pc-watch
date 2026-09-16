@@ -29,6 +29,17 @@ internal sealed class FakeHttp : HttpMessageHandler
     /// <summary>Throw, standing in for no network, DNS failure or a timeout.</summary>
     public static FakeHttp Throwing(Exception error) => new(_ => throw error);
 
+    /// <summary>Respond with 200 and these exact bytes, standing in for a release asset download.</summary>
+    public static FakeHttp Bytes(byte[] body) =>
+        new(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(body) });
+
+    /// <summary>A release with one asset, optionally carrying GitHub's "sha256:..." digest.</summary>
+    public static string ReleaseWithAsset(string tag, string name, string url, string? digest) =>
+        $"{{\"tag_name\":{Quote(tag)},\"html_url\":\"https://example.invalid/page\",\"body\":\"\","
+        + $"\"assets\":[{{\"name\":{Quote(name)},\"browser_download_url\":{Quote(url)}"
+        + (digest is null ? "" : $",\"digest\":{Quote(digest)}")
+        + "}]}";
+
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {

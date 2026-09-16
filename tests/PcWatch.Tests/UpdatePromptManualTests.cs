@@ -28,20 +28,21 @@ public sealed class UpdatePromptManualTests : SettingsRedirectFixture
 
     // ── What it says ────────────────────────────────────────────────────────────────────────────
 
-    [Test]
-    public void A_newer_release_is_OFFERED_with_the_usual_message()
+    [TestCase(true, TestName = "offered, installable here")]
+    [TestCase(false, TestName = "offered, download page only")]
+    public void A_newer_release_is_OFFERED_with_the_usual_message(bool canInstall)
     {
-        var (message, isOffer) = UpdatePrompt.ManualOutcome(Update("9.9.9"), error: null);
+        var (message, isOffer) = UpdatePrompt.ManualOutcome(Update("9.9.9"), error: null, canInstall);
 
         isOffer.Should().BeTrue("there is something to accept or decline");
-        message.Should().Be(UpdatePrompt.BuildMessage(Update("9.9.9")),
+        message.Should().Be(UpdatePrompt.BuildMessage(Update("9.9.9"), canInstall),
             "the manual path must not grow a second, drifting copy of the wording");
     }
 
     [Test]
     public void Nothing_newer_says_UP_TO_DATE_and_names_the_running_version()
     {
-        var (message, isOffer) = UpdatePrompt.ManualOutcome(update: null, error: null);
+        var (message, isOffer) = UpdatePrompt.ManualOutcome(update: null, error: null, canInstall: true);
 
         isOffer.Should().BeFalse();
         message.Should().Contain("latest version").And.Contain(AppVersion.Number,
@@ -54,7 +55,7 @@ public sealed class UpdatePromptManualTests : SettingsRedirectFixture
         // ⛔ THE ONE THAT MATTERS. update is null when the check fails AND when there is nothing new,
         //    so a naive "null means up to date" turns every network failure into a confident false
         //    reassurance - an answer produced by not knowing.
-        var (message, isOffer) = UpdatePrompt.ManualOutcome(update: null, error: "no such host");
+        var (message, isOffer) = UpdatePrompt.ManualOutcome(update: null, error: "no such host", canInstall: true);
 
         isOffer.Should().BeFalse();
         message.Should().Contain("Could not check").And.Contain("no such host");
@@ -66,7 +67,7 @@ public sealed class UpdatePromptManualTests : SettingsRedirectFixture
     {
         // LastError can belong to an EARLIER failed check. A later success must not be reported as
         // a failure just because the stale message is still sitting there.
-        var (_, isOffer) = UpdatePrompt.ManualOutcome(Update("9.9.9"), error: "stale earlier failure");
+        var (_, isOffer) = UpdatePrompt.ManualOutcome(Update("9.9.9"), error: "stale earlier failure", canInstall: false);
 
         isOffer.Should().BeTrue();
     }

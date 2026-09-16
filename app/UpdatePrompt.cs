@@ -15,6 +15,10 @@ namespace PcWatch;
 /// It notifies rather than self-updating: replacing a running binary that is holding a file lock is
 /// how an updater leaves a machine with no working copy, and this app is most wanted precisely when
 /// the machine is already misbehaving.
+///
+/// ⭐ 2026-09-16. It can now also INSTALL, when accepted and when that is safe (see SelfUpdate). The
+///   paragraph above is still the design constraint rather than history: the running binary is never
+///   overwritten, it is renamed aside after a verified download, and any failure leaves it in place.
 /// </remarks>
 public static class UpdatePrompt
 {
@@ -29,7 +33,7 @@ public static class UpdatePrompt
 
         // CheckAsync resumed on a thread-pool thread; UI work has to go back to the message loop.
         if (!owner.IsHandleCreated) return;
-        owner.BeginInvoke(() => Show(update, settings));
+        owner.BeginInvoke(() => Show(owner, update, settings));
     }
 
     /// <summary>
@@ -53,7 +57,7 @@ public static class UpdatePrompt
         AvailableUpdate? update = await checker.CheckAsync();
 
         if (!owner.IsHandleCreated) return;
-        owner.BeginInvoke(() => ShowManualResult(update, checker.LastError, settings));
+        owner.BeginInvoke(() => ShowManualResult(owner, update, checker.LastError, settings));
     }
 
     /// <summary>
@@ -63,9 +67,10 @@ public static class UpdatePrompt
     /// Separated from the dialog so the WORDING can be asserted. This is the only feedback the
     /// button ever gives, so "up to date" and "could not check" must not be confusable.
     /// </remarks>
-    internal static (string Message, bool IsOffer) ManualOutcome(AvailableUpdate? update, string? error)
+    internal static (string Message, bool IsOffer) ManualOutcome(
+        AvailableUpdate? update, string? error, bool canInstall)
     {
-        if (update is not null) return (BuildMessage(update), true);
+        if (update is not null) return (BuildMessage(update, canInstall), true);
 
         // ⚠️ AN ERROR IS NOT "UP TO DATE". Reporting a failed check as "you have the latest" is the
         //    worst outcome available here: a confident answer produced by not knowing.
@@ -74,9 +79,9 @@ public static class UpdatePrompt
             : ($"PC Watch {AppVersion.Number} is the latest version.", false);
     }
 
-    private static void ShowManualResult(AvailableUpdate? update, string? error, Settings settings)
+    private static void ShowManualResult(Form owner, AvailableUpdate? update, string? error, Settings settings)
     {
-        var (message, isOffer) = ManualOutcome(update, error);
+        var (message, isOffer) = ManualOutcome(update, error, update is not null && SelfUpdate.CanInstall(update));
 
         if (!isOffer)
         {
@@ -86,24 +91,33 @@ public static class UpdatePrompt
 
         DialogResult choice = MessageBox.Show(
             message, "Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-        Apply(choice, update!, settings, OpenInBrowser);
+        Apply(choice, update!, settings, accepted => UpdateInstallFlow.Accept(owner, accepted));
     }
 
-    private static void Show(AvailableUpdate update, Settings settings)
+    private static void Show(Form owner, AvailableUpdate update, Settings settings)
     {
         // ⚠️ THE ONLY UNTESTABLE LINE IN THIS FILE, and deliberately the only one. MessageBox.Show
         //    blocks on a modal dialog, so a test that reached it would hang the suite for ever
         //    rather than fail. Everything decided either side of it lives in Apply below.
         DialogResult choice = MessageBox.Show(
-            BuildMessage(update), "Update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            BuildMessage(update, SelfUpdate.CanInstall(update)), "Update available",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Information);
 
-        Apply(choice, update, settings, OpenInBrowser);
+        Apply(choice, update, settings, accepted => UpdateInstallFlow.Accept(owner, accepted));
     }
 
     /// <summary>What the dialog says. Separated so its wording can be asserted.</summary>
-    internal static string BuildMessage(AvailableUpdate update) =>
+    /// <remarks>
+    /// ⛔ 2026-09-16. The question must describe what Yes will actually DO. "Open the download page?"
+    ///    answered with Yes that then downloads, replaces and restarts the app would be a restart the
+    ///    user did not agree to, and that is precisely the objection this app was built around.
+    /// </remarks>
+    internal static string BuildMessage(AvailableUpdate update, bool canInstall) =>
         $"PC Watch {update.Version} is available. You are running {AppVersion.Number}.\n\n"
-        + $"{Truncate(update.Notes, 400)}\n\nOpen the download page?";
+        + $"{Truncate(update.Notes, 400)}\n\n"
+        + (canInstall
+            ? "Install it now? PC Watch will download it, check it, and restart."
+            : "Open the download page?");
 
     /// <summary>
     /// Act on the user's answer: open the page, or go quiet until a newer version appears.
@@ -118,11 +132,11 @@ public static class UpdatePrompt
     ///    page and then does not install would never be told about that release again.
     /// </remarks>
     internal static void Apply(
-        DialogResult choice, AvailableUpdate update, Settings settings, Action<string> open)
+        DialogResult choice, AvailableUpdate update, Settings settings, Action<AvailableUpdate> accept)
     {
         if (choice == DialogResult.Yes)
         {
-            open(update.Url);
+            accept(update);
             return;
         }
 
@@ -130,7 +144,7 @@ public static class UpdatePrompt
         SettingsStore.Save(settings);
     }
 
-    private static void OpenInBrowser(string url)
+    internal static void OpenInBrowser(string url)
     {
         try
         {

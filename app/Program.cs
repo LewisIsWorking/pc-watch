@@ -13,6 +13,11 @@ internal static class Program
             return SelfTest.Run();
         }
 
+        // ⛔ 2026-09-16. BEFORE the single-instance check. A copy started by the updater must wait for
+        //    the one it replaced to exit, or it finds the mutex still held, treats itself as a second
+        //    launch, and exits - leaving the OLD version running from memory.
+        SelfUpdate.FinishReplacing(args);
+
         using var instance = new SingleInstance("PcWatch");
         if (!instance.IsFirstInstance)
         {

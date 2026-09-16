@@ -21,16 +21,37 @@ public sealed class UpdatePromptMessageTests
     [Test]
     public void The_message_names_both_versions()
     {
-        string message = UpdatePrompt.BuildMessage(Update("9.9.9"));
+        string message = UpdatePrompt.BuildMessage(Update("9.9.9"), canInstall: false);
 
         message.Should().Contain("9.9.9").And.Contain(AppVersion.Number,
             "'an update is available' is useless without knowing what you are on");
     }
 
     [Test]
+    public void AN_INSTALLABLE_OFFER_SAYS_IT_WILL_RESTART()
+    {
+        // ⛔ 2026-09-16. Yes now downloads, replaces and restarts the app. A question still reading
+        //    "Open the download page?" would get a Yes for one thing and do another - a restart the
+        //    user never agreed to, which is exactly the objection the updater was designed around.
+        string message = UpdatePrompt.BuildMessage(Update("9.9.9"), canInstall: true);
+
+        message.Should().Contain("Install it now").And.Contain("restart");
+        message.Should().NotContain("download page");
+    }
+
+    [Test]
+    public void A_non_installable_offer_still_only_opens_the_page()
+    {
+        string message = UpdatePrompt.BuildMessage(Update("9.9.9"), canInstall: false);
+
+        message.Should().Contain("Open the download page?");
+        message.Should().NotContain("restart", "nothing will restart when Yes only opens a browser");
+    }
+
+    [Test]
     public void Long_release_notes_are_truncated_so_the_dialog_stays_usable()
     {
-        string message = UpdatePrompt.BuildMessage(Update(notes: new string('x', 5000)));
+        string message = UpdatePrompt.BuildMessage(Update(notes: new string('x', 5000)), canInstall: false);
 
         message.Length.Should().BeLessThan(1000, "a dialog taller than the screen has no buttons");
         message.Should().Contain("...");

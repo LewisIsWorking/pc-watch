@@ -5,7 +5,17 @@ using System.Text.Json;
 namespace PcWatch;
 
 /// <summary>A release newer than the one running.</summary>
-public sealed record AvailableUpdate(string Version, string Url, string DownloadUrl, string Notes);
+/// <param name="Sha256">
+/// Lower-case hex SHA-256 of the download, as GitHub publishes it, or null when it did not.
+/// </param>
+/// <remarks>
+/// ⛔ 2026-09-16. Sha256 decides whether the app may install the update ITSELF. With no published
+///    digest there is nothing independent to check the downloaded bytes against, so the in-app
+///    install is refused and the download page is opened instead - the same trust as before.
+///    Verified against the real v1.1.0 asset: the API digest matched the downloaded bytes exactly.
+/// </remarks>
+public sealed record AvailableUpdate(
+    string Version, string Url, string DownloadUrl, string Notes, string? Sha256 = null);
 
 /// <summary>
 /// Asks GitHub whether a newer release exists.
@@ -15,6 +25,12 @@ public sealed record AvailableUpdate(string Version, string Url, string Download
 /// tool that restarts itself without asking loses the history you were watching, and a background
 /// self-update that fails halfway leaves no working copy at all. The user clicks, the download opens
 /// in the browser, they run it.
+///
+/// ⭐ 2026-09-16. The app can now install an update ITSELF (see SelfUpdate), and both objections above
+///   still stand - they are what it was built around rather than overruled. It never updates
+///   silently: the user is asked, and told it will restart. It never fails halfway: the download is
+///   verified against GitHub's published SHA-256 BEFORE anything on disk is touched, and the swap is
+///   a rename with a rollback, so every failure leaves the running copy intact.
 ///
 /// ⚠️ Failure is SILENT BY DESIGN. No network, GitHub down, rate limited, running behind a proxy -
 /// none of that is the user's problem and none of it should produce a dialog on a machine they were
@@ -102,10 +118,11 @@ public sealed class UpdateChecker
 
             string page = root.TryGetProperty("html_url", out JsonElement h) ? h.GetString() ?? "" : "";
             string notes = root.TryGetProperty("body", out JsonElement b) ? b.GetString() ?? "" : "";
-            string download = FindWindowsAsset(root) ?? page;
+            var (asset, sha256) = FindWindowsAsset(root);
 
             LastError = null;
-            return new AvailableUpdate(tag.TrimStart('v', 'V'), page, download, notes);
+            return new AvailableUpdate(tag.TrimStart('v', 'V'), page, asset ?? page, notes,
+                asset is null ? null : sha256);
         }
         catch (Exception ex)
         {
@@ -115,9 +132,9 @@ public sealed class UpdateChecker
         }
     }
 
-    private static string? FindWindowsAsset(JsonElement release)
+    private static (string? Url, string? Sha256) FindWindowsAsset(JsonElement release)
     {
-        if (!release.TryGetProperty("assets", out JsonElement assets)) return null;
+        if (!release.TryGetProperty("assets", out JsonElement assets)) return (null, null);
 
         foreach (JsonElement asset in assets.EnumerateArray())
         {
@@ -127,9 +144,29 @@ public sealed class UpdateChecker
             {
                 continue;
             }
-            if (asset.TryGetProperty("browser_download_url", out JsonElement url)) return url.GetString();
+            if (asset.TryGetProperty("browser_download_url", out JsonElement url))
+            {
+                // ⚠️ The digest is taken from the SAME asset as the url. Reading it from any other
+                //    asset would verify one file's bytes against another file's hash.
+                return (url.GetString(), ParseSha256(asset));
+            }
         }
-        return null;
+        return (null, null);
+    }
+
+    /// <summary>GitHub's "sha256:&lt;hex&gt;" digest, as bare lower-case hex, or null.</summary>
+    internal static string? ParseSha256(JsonElement asset)
+    {
+        if (!asset.TryGetProperty("digest", out JsonElement d) || d.ValueKind != JsonValueKind.String) return null;
+
+        string value = d.GetString() ?? "";
+        const string prefix = "sha256:";
+        if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
+
+        string hex = value[prefix.Length..].ToLowerInvariant();
+        // A digest that is not 64 hex characters is not a digest. Treating it as one would make the
+        // later comparison fail for every download and look like a corrupted file.
+        return hex.Length == 64 && hex.All(Uri.IsHexDigit) ? hex : null;
     }
 
     /// <summary>One line describing the last check, for the About box.</summary>

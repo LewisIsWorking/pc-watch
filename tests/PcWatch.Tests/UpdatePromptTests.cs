@@ -105,14 +105,17 @@ public sealed class UpdatePromptTests : SettingsRedirectFixture
     // ── Acting on the answer ────────────────────────────────────────────────────────────────────
 
     [Test]
-    public void Accepting_opens_the_release_page()
+    public void Accepting_hands_THIS_update_to_the_accept_action()
     {
-        var opened = new List<string>();
-        var settings = new Settings();
+        // 2026-09-16. Apply used to open the page itself. Whether Yes now INSTALLS or opens the page
+        // is decided by SelfUpdate.CanInstall, which is tested on its own; Apply's job is only to pass
+        // the accepted update on, and to pass the right one.
+        var accepted = new List<AvailableUpdate>();
+        AvailableUpdate update = Update("9.9.9");
 
-        UpdatePrompt.Apply(DialogResult.Yes, Update(), settings, opened.Add);
+        UpdatePrompt.Apply(DialogResult.Yes, update, new Settings(), accepted.Add);
 
-        opened.Should().Equal("https://example.invalid/release");
+        accepted.Should().ContainSingle().Which.Should().BeSameAs(update);
     }
 
     [Test]
@@ -130,13 +133,13 @@ public sealed class UpdatePromptTests : SettingsRedirectFixture
     [Test]
     public void Declining_records_the_version_and_opens_nothing()
     {
-        var opened = new List<string>();
+        var accepted = new List<AvailableUpdate>();
         var settings = new Settings();
 
-        UpdatePrompt.Apply(DialogResult.No, Update("9.9.9"), settings, opened.Add);
+        UpdatePrompt.Apply(DialogResult.No, Update("9.9.9"), settings, accepted.Add);
 
         settings.SkipVersion.Should().Be("9.9.9");
-        opened.Should().BeEmpty();
+        accepted.Should().BeEmpty("declining must neither install nor open anything");
     }
 
     [Test]
@@ -153,12 +156,12 @@ public sealed class UpdatePromptTests : SettingsRedirectFixture
     {
         // Alt+F4 or the X returns Cancel. Treating that as acceptance would open a browser the user
         // did not ask for.
-        var opened = new List<string>();
+        var accepted = new List<AvailableUpdate>();
         var settings = new Settings();
 
-        UpdatePrompt.Apply(DialogResult.Cancel, Update("9.9.9"), settings, opened.Add);
+        UpdatePrompt.Apply(DialogResult.Cancel, Update("9.9.9"), settings, accepted.Add);
 
-        opened.Should().BeEmpty();
+        accepted.Should().BeEmpty("closing the dialog must never start an install and restart");
         settings.SkipVersion.Should().Be("9.9.9");
     }
 }

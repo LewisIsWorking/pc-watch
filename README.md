@@ -141,8 +141,18 @@ pwsh -File check-no-leaks.ps1                       # scans the BUILT BINARY for
 
 ## Privacy
 
-No telemetry. The only outbound request is one HTTPS GET to `api.github.com` on launch, asking
-whether a newer release exists; disable it permanently with `PcWatch.exe --no-update-check`.
+No telemetry. Every outbound request goes to GitHub, and there are exactly three, as of 2026-09-16:
+
+| When | Request | Can be turned off |
+|---|---|---|
+| On launch | one HTTPS GET to `api.github.com`, asking whether a newer release exists | yes, permanently: `PcWatch.exe --no-update-check` |
+| You click **Check for updates** in the tray menu | the same GET | it only happens when you click it, even with automatic checks off |
+| You accept **Install it now** | a download of that release's asset from GitHub | it only happens when you accept |
+
+An update is installed only after you agree to it, and only if the downloaded file matches the
+SHA-256 checksum GitHub publishes for it. A release with no checksum, or a copy of PC Watch that is
+not the published single-file exe, opens the download page instead. If anything fails before the
+new version is in place, your current copy is left exactly as it was.
 
 It reads process **names only**, never command lines — those routinely contain `--token=` and
 `--password=`, and the Toolhelp snapshot it uses cannot return one even by accident. The report is
