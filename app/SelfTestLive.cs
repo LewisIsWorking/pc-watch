@@ -64,9 +64,20 @@ public static class SelfTestLive
                  + $", kernel counter {live.SinceKernelBoot.TotalDays:N1} days, fast startup {live.FastStartupEnabled}");
 
             if (live.OnSince is null) throw new Exception("could not read a boot/resume event");
-            if (live.Best > live.SinceKernelBoot + TimeSpan.FromMinutes(5))
+
+            // ⛔ 2026-09-17. This said "which is impossible" and failed on a VM whose clock time sync
+            //    had stepped forward 751 s after a stall. Excess the LOGGED forward steps explain is
+            //    fine; excess they do not explain still fails, which is the case that matters: an
+            //    OLDER boot event read by mistake. See ClockSteps.
+            TimeSpan steps = ClockSteps.ForwardSince(live.OnSince.Value) ?? TimeSpan.Zero;
+            if (steps > TimeSpan.Zero) r.Note($"clock stepped forward {steps.TotalMinutes:N1} min since boot");
+
+            if (!ClockSteps.OnForIsExplained(live.Best, live.SinceKernelBoot, steps, TimeSpan.FromMinutes(5)))
             {
-                throw new Exception("on-for exceeds time since kernel boot, which is impossible");
+                TimeSpan excess = live.Best - live.SinceKernelBoot;
+                throw new Exception(
+                    $"on-for exceeds kernel uptime by {excess.TotalMinutes:N1} min but the clock was stepped "
+                    + $"forward only {steps.TotalMinutes:N1} min since boot - an older boot event may have been read");
             }
         });
     }

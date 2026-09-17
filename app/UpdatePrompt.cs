@@ -3,7 +3,8 @@ using System.Diagnostics;
 namespace PcWatch;
 
 /// <summary>
-/// Asks once per version whether to open the download page for a newer release.
+/// Offers a newer release: to install it in place where that is safe, otherwise to open its download
+/// page. The automatic offer asks once per version; the tray menu's manual check always answers.
 /// </summary>
 /// <remarks>
 /// 2026-09-02. Split out of MainForm at the 200-line limit.

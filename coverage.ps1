@@ -97,16 +97,39 @@ if (-not (Get-Command dotnet-coverage -ErrorAction SilentlyContinue)) {
 #    counted as PRODUCTION code. They sit at 100% by construction, so they raised the score for
 #    nothing - precisely the failure this list exists to prevent, reintroduced by a naming
 #    convention the pattern did not anticipate. Any new suffix under tests/ needs a look here.
+#
+# ⛔ 2026-09-17: SUPERSEDED BY THE FOLDER RULE BELOW, because "needs a look here" did not happen. A
+#    test helper named UpdateTestFiles.cs matched none of these suffixes and was caught only by
+#    luck, one rename away from counting as production code. A rule that depends on every future
+#    file being NAMED correctly fails the first time someone names one naturally. Anything under
+#    tests/ is now excluded by where it LIVES; the name patterns remain for code compiled into the
+#    app itself (SelfTest*.cs) and for generated files.
 $excluded = '\.g\.cs$|\.g\.i\.cs$|^SelfTest|Tests\.cs$|Fixture\.cs$|^FakeHttp\.cs$'
+# Anchored to THIS repo's tests folder. A bare '\tests\' would also match a folder ABOVE the repo -
+# a clone at D:\tests\pc-watch - and exclude every file there is.
+$testFolder = (Join-Path $root 'tests') + [IO.Path]::DirectorySeparatorChar
 
 Write-Host 'building (CoverageBuild=true: privacy PathMap off, portable PDBs on)' -ForegroundColor Cyan
 # ⚠️ SelfContained must be OFF for a coverage run. The app ships self-contained (there is no
 #    machine-wide .NET 11), but the copy dropped beside the tests has no runtime next to it, so it
 #    dies with "hostpolicy.dll not found" the moment the self-test is launched.
-dotnet build (Join-Path $root 'tests/PcWatch.Tests/PcWatch.Tests.csproj') `
+#
+# ⛔ 2026-09-17. THE BUILD OUTPUT USED TO GO TO Out-Null, so every failure read "build failed" - a real
+#    compile error and a build memory-killed by other sessions' builds were indistinguishable. The
+#    same command succeeded when run by hand a minute later, with nine other dotnet builds running on
+#    the machine. The cause is printed now: error lines if there are any, otherwise the tail of the
+#    log, since a killed build often dies without writing one.
+$buildLog = dotnet build (Join-Path $root 'tests/PcWatch.Tests/PcWatch.Tests.csproj') `
     -p:PcWatchTfm=$Tfm -p:CoverageBuild=true -p:SelfContained=false -p:PublishSingleFile=false `
-    --nologo -v q | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'build failed' }
+    --nologo -v q 2>&1
+if ($LASTEXITCODE -ne 0) {
+    $code = $LASTEXITCODE
+    $errors = @($buildLog | Select-String ': error ' | Select-Object -First 15)
+    $shown = if ($errors.Count -gt 0) { $errors.Line } else { $buildLog | Select-Object -Last 15 }
+    $shown | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    $others = @(Get-CimInstance Win32_Process -Filter "Name='dotnet.exe' OR Name='MSBuild.exe'" -ErrorAction SilentlyContinue).Count
+    throw "build failed (exit $code; $($errors.Count) compiler errors; $others dotnet/MSBuild processes running on this machine)"
+}
 
 $unit = Join-Path $out 'unit.cobertura.xml'
 $live = Join-Path $out 'selftest.cobertura.xml'
@@ -153,6 +176,7 @@ $files = @{}
 foreach ($class in $classes) {
     $name = Split-Path -Leaf ($class.filename -replace '\\', '/')
     if ($name -match $excluded) { continue }
+    if ($class.filename.StartsWith($testFolder, [StringComparison]::OrdinalIgnoreCase)) { continue }
 
     # A named object, not a 4-element array. The array form silently became nested on the second
     # merge of the same file and failed with "Object[] does not contain op_Addition".
@@ -171,6 +195,11 @@ foreach ($class in $classes) {
         }
     }
 }
+
+# ⛔ 2026-09-17. An EMPTY set used to score 100%: the percentages below fall back to 100 when there is
+#    nothing to divide by, so a filter that excluded every file reported perfect coverage and met
+#    every floor. Measuring nothing is a failure to measure, never a perfect score.
+if ($files.Count -eq 0) { throw 'every measured file was excluded - nothing left to score, so no percentage is reported' }
 
 $lineHit = ($files.Values | Measure-Object -Property Hit -Sum).Sum
 $lineTot = ($files.Values | Measure-Object -Property Total -Sum).Sum
