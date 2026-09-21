@@ -17,9 +17,15 @@ namespace PcWatch;
 ///      sleep time (tick vs unbiased counter)         none
 ///      Kernel-General 1, 00:57:58                    clock stepped FORWARD 751.3 s (12.52 min)
 ///
-///    The VM stalled - nine other sessions' dotnet builds were running on it - so its clock fell
-///    behind while the tick count, correctly, did not advance for time it was not running. Time sync
-///    then stepped the wall clock forward. Both counters were right. The "impossible" was not.
+///    The VM stalled, so its clock fell behind while the tick count, correctly, did not advance for
+///    time it was not running. Time sync then stepped the wall clock forward. Both counters were
+///    right. The "impossible" was not.
+///
+///    ⚠️ 2026-09-21, CORRECTED: this first said the stall happened BECAUSE nine other sessions' dotnet
+///       builds were running. That was seen alongside it, never shown to cause it - and the same
+///       week DevPrison's crashes were traced to the host SSD being full, with virtual disk writes
+///       taking 7-15 s, which stalls a guest just as well. The cause of this stall is not
+///       established. Nothing below depends on it: any stall that time sync corrects looks the same.
 ///
 ///    A physical PC does the same when NTP corrects a slow hardware clock after boot.
 ///
