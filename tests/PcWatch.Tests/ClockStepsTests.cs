@@ -7,7 +7,7 @@ namespace PcWatch.Tests;
 /// Clock steps, and when on-for running ahead of the kernel counter is explained by them.
 /// </summary>
 /// <remarks>
-/// ⛔ 2026-09-17. Numbers below are the real ones from DevPrison: on-for 12.5 min ahead of the kernel
+/// ⛔ 2026-09-17. Numbers below are the real ones from the dev VM: on-for 12.5 min ahead of the kernel
 ///    count, explained exactly by a logged forward step of 751.3 s after a VM stall.
 /// </remarks>
 [TestFixture]
@@ -74,7 +74,7 @@ public sealed class ClockStepsTests
     [Test]
     public void The_real_event_xml_shape_is_parsed()
     {
-        // Shape of the Kernel-General 1 record read on DevPrison, 2026-09-17.
+        // Shape of the Kernel-General 1 record read on the dev VM, 2026-09-17.
         const string xml = """
             <Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
               <System><Provider Name="Microsoft-Windows-Kernel-General"/><EventID>1</EventID></System>

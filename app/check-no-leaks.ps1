@@ -5,9 +5,11 @@
 .DESCRIPTION
     2026-09-02. Written after the published 1.1.0 exe was found to contain
 
-        C:\Users\<name>\tools\pc-watch\app\obj\Release\net11.0-windows\win-x64\PcWatch.pdb
+        C:\Users\<name>\tools\pc-watch\app\obj\<Release>\net11.0-windows\win-x64\PcWatch.pdb
 
-    in its debug directory. Nothing warns about that. It is simply what the compiler emits, and it
+    in its debug directory. (⚠️ 2026-09-21: "<Release>" is bracketed ON PURPOSE. Written plainly, this
+    example matched the build-directory pattern below, so the tracked-files check failed on THIS
+    SCRIPT every run since it was written - a gate that can never pass is one people learn to skip.) Nothing warns about that. It is simply what the compiler emits, and it
     means every downloader of a release learns the builder's Windows username.
 
     ⚠️ This scans the ACTUAL BUILT ARTEFACT, not the source. A source-only check would have passed
@@ -84,11 +86,15 @@ try {
             'private key'    = '-----BEGIN [A-Z ]*PRIVATE KEY'
             'Slack token'    = 'xox[baprs]-[A-Za-z0-9-]{10,}'
         }
+        $secretFound = $false
         foreach ($name in $secrets.Keys) {
             $hits = $tracked | ForEach-Object { Select-String -Path $_ -Pattern $secrets[$name] -List -EA SilentlyContinue }
-            if ($hits) { Fail "$name in: $(($hits | Select-Object -Expand Path) -join ', ')" }
+            if ($hits) { $secretFound = $true; Fail "$name in: $(($hits | Select-Object -Expand Path) -join ', ')" }
         }
-        Pass 'no credential patterns in tracked files'
+        # ⛔ 2026-09-21: this PASS used to print unconditionally, directly under any credential FAIL.
+        #    The exit code was still right, but a log reading "[FAIL] GitHub token ... [PASS] no
+        #    credential patterns" invites whoever reads it to believe the second line.
+        if (-not $secretFound) { Pass 'no credential patterns in tracked files' }
     }
 } finally {
     Pop-Location

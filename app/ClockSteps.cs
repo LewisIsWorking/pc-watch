@@ -8,7 +8,7 @@ namespace PcWatch;
 /// Forward jumps of the system clock, which make "on for" legitimately exceed the kernel tick count.
 /// </summary>
 /// <remarks>
-/// ⛔ 2026-09-17, MEASURED ON DEVPRISON (a VMware VM). The self-test declared it "impossible" for the
+/// ⛔ 2026-09-17, MEASURED ON A VMWARE VM (the dev machine). The self-test declared it "impossible" for the
 ///    wall-clock time since boot to exceed the kernel's own count by more than 5 minutes. Then it did,
 ///    by 12.5 minutes:
 ///
@@ -23,7 +23,7 @@ namespace PcWatch;
 ///
 ///    ⚠️ 2026-09-21, CORRECTED: this first said the stall happened BECAUSE nine other sessions' dotnet
 ///       builds were running. That was seen alongside it, never shown to cause it - and the same
-///       week DevPrison's crashes were traced to the host SSD being full, with virtual disk writes
+///       week that VM's crashes were traced to the host SSD being full, with virtual disk writes
 ///       taking 7-15 s, which stalls a guest just as well. The cause of this stall is not
 ///       established. Nothing below depends on it: any stall that time sync corrects looks the same.
 ///
