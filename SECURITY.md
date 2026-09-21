@@ -6,11 +6,18 @@ than merely promised.
 
 ## What leaves your computer
 
-**One HTTPS GET, on launch, to `api.github.com`,** asking whether a newer release exists. It carries
-a `User-Agent` of `PcWatch/<version>` and nothing else — no process names, no machine details, no
-identifier, no analytics.
+Only requests to GitHub, and only these three (as of v1.2.0, 2026-09-21):
 
-Turn it off permanently:
+| When | Request | You can prevent it |
+|---|---|---|
+| On launch | one HTTPS GET to `api.github.com`, asking whether a newer release exists | yes, permanently — see below |
+| You click **Check for updates** in the tray menu | the same GET | it happens only when you click, even with automatic checks off |
+| You accept **Install it now** | a download of that release's asset from GitHub | it happens only when you accept |
+
+Each carries a `User-Agent` of `PcWatch/<version>` and nothing else — no process names, no machine
+details, no identifier, no analytics.
+
+Turn the automatic check off permanently:
 
 ```powershell
 PcWatch.exe --no-update-check
@@ -21,6 +28,19 @@ or set `"CheckForUpdates": false` in `%APPDATA%\PcWatch\settings.json`. The opt-
 GitHub the app is running, which is the part being opted out of.
 
 There is no telemetry, no crash reporting and no other network code in the project.
+
+### Installing an update
+
+Accepting an update never runs anything unverified. The download is checked against the **SHA-256
+checksum GitHub publishes for that asset** before anything on disk is touched; a mismatched file is
+deleted. A release with no published checksum is not installed at all — the download page opens
+instead, and nothing is fetched. The same happens for any copy that is not the published single-file
+exe (a development build, for instance).
+
+Only `PcWatch.exe` at the root of the archive is extracted, by exact name, so an archive entry such
+as `..\something.exe` cannot write outside the working folder. The running exe is never overwritten:
+it is renamed to `PcWatch.exe.old`, the new one takes its place, and the next launch deletes the old
+copy. If putting the new file in place fails, the original is renamed back.
 
 ## What it deliberately does NOT read
 
@@ -56,12 +76,15 @@ Windows (`csrss`, `wininit`, `winlogon`, `services`, `smss`, `lsass`, `svchost`,
 before ending anything that takes work with it, and re-checks the process name against the live
 process before killing — pids get recycled, and the row you clicked was rendered up to a second ago.
 
-It never elevates, installs a driver, or writes outside `%APPDATA%\PcWatch\`.
+It never elevates or installs a driver. It writes to `%APPDATA%\PcWatch\` (its settings), and — only
+when you accept an update — to `%TEMP%\PcWatch-update\` (the download) and to the folder holding
+`PcWatch.exe` (the new exe, and the old one until the next launch removes it). If that folder is not
+writable by you, the update is refused and nothing is changed.
 
 ## How these claims are enforced
 
 ```powershell
-PcWatch.exe --self-test              # 60 checks, exit code 0 or 1
+PcWatch.exe --self-test              # 73 checks as of v1.2.0, exit code 0 or 1
 pwsh -File app\check-no-leaks.ps1    # scans the BUILT BINARY and tracked files
 ```
 
