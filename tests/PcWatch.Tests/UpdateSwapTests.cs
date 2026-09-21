@@ -53,10 +53,12 @@ public sealed class UpdateSwapTests
     }
 
     [Test]
-    public void AN_UNWRITABLE_INSTALL_CHANGES_NOTHING()
+    public void AN_EXE_HELD_OPEN_THROUGHOUT_CHANGES_NOTHING()
     {
-        // Held open with no sharing, the running exe cannot be renamed - standing in for a folder the
-        // user cannot write to, such as Program Files without elevation.
+        // ⚠️ 2026-09-21, CORRECTED. This was named AN_UNWRITABLE_INSTALL and asserted "not writable",
+        //    but holding the file open is a SHARING VIOLATION, not a permissions problem - the same
+        //    conflation the first real end-to-end update exposed. It now asserts the diagnosis that is
+        //    true. A genuinely unwritable folder is covered by ACCESS_DENIED_IS_NOT_RETRIED.
         string current = _files.CurrentExe();
         string replacement = _files.PathOf("new.exe");
         File.WriteAllText(replacement, "NEW VERSION");
@@ -64,7 +66,7 @@ public sealed class UpdateSwapTests
         using (new FileStream(current, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             Action swap = () => UpdateSwap.Swap(current, replacement);
-            swap.Should().Throw<UpdateFailedException>().WithMessage("*not writable*");
+            swap.Should().Throw<UpdateFailedException>().WithMessage("*held open by another program*");
         }
 
         File.ReadAllText(current).Should().Be("OLD VERSION");
