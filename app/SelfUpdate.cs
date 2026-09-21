@@ -98,17 +98,25 @@ public static class SelfUpdate
     /// at a process that lived 26 s, it showed no window and left PcWatch.exe.old in place for the
     /// whole 26 s, deleted it 0.1 s after that process exited, and opened its window 0.9 s later.
     /// </remarks>
-    internal static void FinishReplacing(string[] args, string baseDirectory, string? processPath)
+    internal static void FinishReplacing(string[] args, string baseDirectory, string? processPath) =>
+        FinishReplacing(args, baseDirectory, processPath, Thread.Sleep);
+
+    internal static void FinishReplacing(string[] args, string baseDirectory, string? processPath, Action<TimeSpan> wait)
     {
         if (!IsPublishedSingleFile(baseDirectory, processPath)) return;
 
-        if (int.TryParse(Program.ArgumentValue(args, ReplacingFlag), out int oldProcess))
+        bool replacing = int.TryParse(Program.ArgumentValue(args, ReplacingFlag), out int oldProcess);
+        if (replacing)
         {
-            UpdateSwap.WaitForExit(oldProcess, TimeSpan.FromSeconds(30));
+            UpdateCleanup.WaitForExit(oldProcess, TimeSpan.FromSeconds(30));
         }
 
         // Every launch, not only after an update: a copy that could not delete it last time (still
         // locked) gets another chance, and a missing file costs nothing.
-        UpdateSwap.CleanupAfterUpdate(processPath!);
+        //
+        // ⚠️ 2026-09-21: RETRIED ONLY STRAIGHT AFTER AN UPDATE, up to ~3 s. That is the moment the old
+        //    exe is most likely still being released. On an ordinary launch one attempt is enough, and
+        //    a file some other program holds for a long time must never delay normal startup.
+        UpdateCleanup.CleanupAfterUpdate(processPath!, replacing ? 10 : 1, TimeSpan.FromMilliseconds(300), wait);
     }
 }

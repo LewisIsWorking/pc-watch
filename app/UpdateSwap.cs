@@ -149,35 +149,4 @@ public static class UpdateSwap
     /// <summary>ERROR_SHARING_VIOLATION (32) or ERROR_LOCK_VIOLATION (33): transient, worth waiting out.</summary>
     internal static bool IsSharingViolation(Exception ex) =>
         ex is IOException io && (io.HResult & 0xFFFF) is 32 or 33;
-
-    /// <summary>Delete the copy an earlier update left behind. Harmless when there is none.</summary>
-    public static void CleanupAfterUpdate(string current)
-    {
-        try { File.Delete(current + OldSuffix); } catch { /* still locked: try again next launch */ }
-    }
-
-    /// <summary>
-    /// Wait for the process being replaced to exit, so this one can become the single instance.
-    /// </summary>
-    /// <remarks>
-    /// ⚠️ Without this the new copy starts while the old one still holds the single-instance mutex,
-    ///    concludes it is a second launch, signals the old window to show itself, and exits - so the
-    ///    update "restarts" into the OLD version still running from memory.
-    /// </remarks>
-    public static bool WaitForExit(int processId, TimeSpan timeout)
-    {
-        try
-        {
-            using System.Diagnostics.Process process = System.Diagnostics.Process.GetProcessById(processId);
-            return process.WaitForExit(timeout);
-        }
-        catch (ArgumentException)
-        {
-            return true; // already gone
-        }
-        catch (InvalidOperationException)
-        {
-            return true; // exited between the lookup and the wait
-        }
-    }
 }

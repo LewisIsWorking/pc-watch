@@ -93,10 +93,10 @@ public sealed class UpdateSwapTests
         string current = _files.CurrentExe();
         File.WriteAllText(current + ".old", "OLD");
 
-        UpdateSwap.CleanupAfterUpdate(current);
+        UpdateCleanup.CleanupAfterUpdate(current);
         File.Exists(current + ".old").Should().BeFalse();
 
-        Action again = () => UpdateSwap.CleanupAfterUpdate(current);
+        Action again = () => UpdateCleanup.CleanupAfterUpdate(current);
         again.Should().NotThrow();
     }
 
@@ -153,7 +153,7 @@ public sealed class UpdateSwapTests
     [Test]
     public void Waiting_for_a_process_that_has_already_gone_returns_at_once()
     {
-        UpdateSwap.WaitForExit(int.MaxValue, TimeSpan.FromSeconds(5)).Should().BeTrue();
+        UpdateCleanup.WaitForExit(int.MaxValue, TimeSpan.FromSeconds(5)).Should().BeTrue();
     }
 
     [Test]
@@ -162,6 +162,6 @@ public sealed class UpdateSwapTests
         using var child = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
             "cmd.exe", "/c exit 0") { CreateNoWindow = true, UseShellExecute = false })!;
 
-        UpdateSwap.WaitForExit(child.Id, TimeSpan.FromSeconds(20)).Should().BeTrue();
+        UpdateCleanup.WaitForExit(child.Id, TimeSpan.FromSeconds(20)).Should().BeTrue();
     }
 }
