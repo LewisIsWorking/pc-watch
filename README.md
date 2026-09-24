@@ -32,20 +32,20 @@ named mutex plus a named event: the second process signals the first and exits i
 
 Updates **every second**: headline figure, tray icon, two-minute rolling graph, process table.
 
-It also remembers where you left it — including which monitor — and reopens there. `--monitor right`
+It also remembers where you left it - including which monitor - and reopens there. `--monitor right`
 (or `left`, `primary`, or a 1-based index) places it once; after that the saved position wins.
 
 ## What it shows
 
 - **Real CPU load**, agreeing with Task Manager, from `GetSystemTimes`.
-- **How it is running** — named indicators (CPU, memory, GPU, disk), each with a plain verdict.
+- **How it is running** - named indicators (CPU, memory, GPU, disk), each with a plain verdict.
   Deliberately **not** a single 0-100 score: two machines both scoring 72 can be unwell in
   completely different ways, and nobody can act on a 72. The overall word comes from the **worst**
   indicator, never an average.
-- **Power draw** — GPU watts **measured** via NVML, CPU watts **estimated** from load and clearly
+- **Power draw** - GPU watts **measured** via NVML, CPU watts **estimated** from load and clearly
   labelled as such. AMD package power needs a kernel driver, so an honest estimate beats a figure
   that looks measured. The two are never added into one unlabelled number.
-- **By program** — several processes sharing a name, added together. A machine at 100% CPU listing
+- **By program** - several processes sharing a name, added together. A machine at 100% CPU listing
   nothing above 12% is thirty `dotnet` processes at 2% each, and only grouping shows it.
 - **Alive over a day**, with a kill button, an owner column, and a denylist that refuses the
   processes whose termination bugchecks Windows.
@@ -59,9 +59,9 @@ Measured on this box, 2026-08-31, all within seconds of each other:
 
 | Source | Reading | What it actually measures |
 |---|---|---|
-| Windhawk taskbar mod | **98%** | ⚠️ `% Processor Performance` — **clock speed ÷ base clock** |
-| Task Manager | 67% | `% Processor Utility` — frequency-aware utilisation |
-| `Get-Counter` | 88% | `% Processor Time` — plain busy-vs-idle |
+| Windhawk taskbar mod | **98%** | ⚠️ `% Processor Performance` - **clock speed ÷ base clock** |
+| Task Manager | 67% | `% Processor Utility` - frequency-aware utilisation |
+| `Get-Counter` | 88% | `% Processor Time` - plain busy-vs-idle |
 
 `% Processor Performance` **is not a load metric.** Five consecutive samples: real load moved
 90 → 100% while it sat at 98.6 every time. Load then halved to 50% and it *still* read 98. This
@@ -88,7 +88,7 @@ advice would have killed live work. Load cannot separate a runaway leftover from
 use; ancestry can. Every flagged process carries a `launched by ...` line **above** the advice.
 
 The owner is the first *named* owner in the chain (`claude`, `node`, `dotnet`, `rider64`, …), not
-the nearest non-shell — otherwise the answer for the emulator is `emulator`, which is true and
+the nearest non-shell - otherwise the answer for the emulator is `emulator`, which is true and
 useless.
 
 It also reports **how much of the load the list explains** (`these 14 account for 60.5% of the 80%
@@ -105,13 +105,13 @@ The app reported **18.8 days** for a PC that had been on for a day and a half. M
 |---|---|
 | `GetTickCount64` | 18.8 days |
 | WMI `LastBootUpTime` | 18.8 days (13 Aug) |
-| `HiberbootEnabled` | **1** — Fast Startup is ON |
+| `HiberbootEnabled` | **1** - Fast Startup is ON |
 | Kernel-Boot event 27 | 30 Aug 11:16:56, **boot type 0x1** (hiberboot) |
 | `explorer.exe` start | 30 Aug 11:16:59 |
 
 With Fast Startup, "shut down" **hibernates the kernel session** instead of stopping it, so neither
-counter resets. They are not broken — they answer *"how long since a full boot"*, a different
-question — and **they agreed with each other perfectly while both being useless for the one being
+counter resets. They are not broken - they answer *"how long since a full boot"*, a different
+question - and **they agreed with each other perfectly while both being useless for the one being
 asked.** Two sources agreeing is not evidence that either is right.
 
 `SystemUptime.cs` reads the System event log for the most recent boot or resume, which is the only
@@ -126,7 +126,7 @@ You can see the split in the process list itself: `System` and `MsMpEng` show `u
 ## Building
 
 Needs the **.NET 11 SDK**. Built and tested against **RC 1** (`11.0.100-rc.1.26425.128`, released
-2026-09-08 with a go-live licence) as of 2026-09-12. Nothing else — no NuGet dependencies at all.
+2026-09-08 with a go-live licence) as of 2026-09-12. Nothing else - no NuGet dependencies at all.
 
 The release is self-contained, so it ships whichever .NET 11 runtime the SDK that published it
 carries. **Publishing from a machine that still has preview 7 ships preview 7**, whatever this
@@ -154,11 +154,11 @@ SHA-256 checksum GitHub publishes for it. A release with no checksum, or a copy 
 not the published single-file exe, opens the download page instead. If anything fails before the
 new version is in place, your current copy is left exactly as it was.
 
-It reads process **names only**, never command lines — those routinely contain `--token=` and
+It reads process **names only**, never command lines - those routinely contain `--token=` and
 `--password=`, and the Toolhelp snapshot it uses cannot return one even by accident. The report is
 designed to be pasted into a bug report, and the self-test renders a live one and fails if it
 contains a filesystem path, your username, your machine name, anything shaped like a command-line
-argument or credential, or an expanded environment variable — with the scanner itself fed known-bad
+argument or credential, or an expanded environment variable - with the scanner itself fed known-bad
 input to prove it detects anything at all.
 
 Full detail, including what "Copy report" puts on your clipboard: [SECURITY.md](SECURITY.md).
@@ -166,7 +166,7 @@ Full detail, including what "Copy report" puts on your clipboard: [SECURITY.md](
 Published **self-contained** (~108 MB) because there is no system-wide .NET 11 runtime yet, and a
 monitoring tool that only starts from a shell with `DOTNET_ROOT` set is not a tool anyone can pin.
 
-To build against .NET 10 instead — every feature works except the .NET 11 visual styles opt-in:
+To build against .NET 10 instead - every feature works except the .NET 11 visual styles opt-in:
 
 ```powershell
 dotnet publish -c Release -r win-x64 --self-contained false -p:PcWatchTfm=net10.0-windows -o ..\bin-net10
@@ -181,12 +181,12 @@ Measured, 5 runs of `--self-test` each, same machine:
 | .NET 10, framework-dependent | 3415 ms | 2914 | 4867 |
 | .NET 11, self-contained | **2956 ms** | 2788 | 3099 |
 
-About **13% faster on average and far more consistent** — the .NET 10 spread is nearly 2 seconds
+About **13% faster on average and far more consistent** - the .NET 10 spread is nearly 2 seconds
 wide, the .NET 11 spread about 300 ms. ⚠️ Startup dominates this: the workload is short, so much of what
 is compared is runtime init rather than throughput, and the two builds differ in deployment mode as
 well as runtime. Both numbers are real; the gap is not purely "11 vs 10".
 
-`VisualStylesMode.Net11` is enabled and changed **nothing visible** — it restyles *stock* controls,
+`VisualStylesMode.Net11` is enabled and changed **nothing visible** - it restyles *stock* controls,
 and this window is a custom-painted chart, two labels, a `ListView` and a monospace `RichTextBox`.
 
 ### It did surface a real behaviour change
@@ -198,8 +198,8 @@ and this window is a custom-painted chart, two labels, a `ListView` and a monosp
 | .NET 10.0.11 | 19.83 days | `GetTickCount64` (includes sleep) |
 | .NET 11.0.0-preview.7 | 15.71 days | `QueryUnbiasedInterruptTime` (excludes sleep) |
 
-The 4.12-day gap is time this PC spent asleep. Neither value is wrong — they answer different
-questions — and nothing flagged the change. It was noticed only because a *boot counter appeared to
+The 4.12-day gap is time this PC spent asleep. Neither value is wrong - they answer different
+questions - and nothing flagged the change. It was noticed only because a *boot counter appeared to
 go backwards* between two builds. `Native.TimeSinceBootIncludingSleep` now P/Invokes
 `GetTickCount64` explicitly, so both builds agree.
 
@@ -225,16 +225,16 @@ PowerShell original: **+24 handles per 40 s**, the quota in about four hours. Di
 
 **`AbandonedMutexException` is a success, not a refusal.** It means the wait succeeded and the last
 owner died holding the mutex. Unhandled, crashing one instance killed the *next* launch too, about
-ten seconds in, after startup work completed — so it appeared in the task list first.
+ten seconds in, after startup work completed - so it appeared in the task list first.
 
 **An assigned `ClientSize` does not arrive as assigned.** On this 125% display, asking for 800 tall
-produced 640 — exactly 96/120 — and the process table was clipped. WinForms applies that conversion
+produced 640 - exactly 96/120 - and the process table was clipped. WinForms applies that conversion
 under PerMonitorV2 regardless of `AutoScaleMode`. Found only by probing `GetWindowRect` directly;
 the sizes in code and on screen never matched and nothing reported an error. See
 `DashboardLayout.MeasuredClientSize`.
 
 **`GetPositionFromCharIndex` clamps to the visible area.** It returns an in-view `Y` for text far
-below the fold, so an overflow test built on it can never fire — a measurement that cannot detect
+below the fold, so an overflow test built on it can never fire - a measurement that cannot detect
 the condition it exists to detect. `ReportFitter` uses the control's **line count** instead, and
 `ReportRenderer` emits the findings **before** the process table so that a residual error clips the
 tail of a sorted list rather than the diagnosis. Four attempts to *calculate* the fit all failed;
@@ -291,10 +291,10 @@ small processes must **not** report "nothing obviously wrong".
 
 ---
 
-## `legacy-powershell/` is superseded — do not edit it
+## `legacy-powershell/` is superseded - do not edit it
 
 The original was a tray-only PowerShell tool. It could not be pinned, because Windows offers
-"Pin to taskbar" only for shortcuts to **executables** — never `.vbs` or `.ps1`.
+"Pin to taskbar" only for shortcuts to **executables** - never `.vbs` or `.ps1`.
 
 Its logic was ported here and its tests became `--self-test`, so the evidence was not lost. It is
 kept only as the reference the port was made from. **Two copies of the same heuristics drift, and a

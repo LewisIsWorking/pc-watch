@@ -1,7 +1,7 @@
 # Security and privacy
 
 PC Watch reads your machine's performance counters and process list. This document states exactly
-what it reads, what it shows, and what leaves your computer — and how each claim is enforced rather
+what it reads, what it shows, and what leaves your computer - and how each claim is enforced rather
 than merely promised.
 
 ## What leaves your computer
@@ -10,11 +10,11 @@ Only requests to GitHub, and only these three (as of v1.2.0, 2026-09-21):
 
 | When | Request | You can prevent it |
 |---|---|---|
-| On launch | one HTTPS GET to `api.github.com`, asking whether a newer release exists | yes, permanently — see below |
+| On launch | one HTTPS GET to `api.github.com`, asking whether a newer release exists | yes, permanently - see below |
 | You click **Check for updates** in the tray menu | the same GET | it happens only when you click, even with automatic checks off |
 | You accept **Install it now** | a download of that release's asset from GitHub | it happens only when you accept |
 
-Each carries a `User-Agent` of `PcWatch/<version>` and nothing else — no process names, no machine
+Each carries a `User-Agent` of `PcWatch/<version>` and nothing else - no process names, no machine
 details, no identifier, no analytics.
 
 Turn the automatic check off permanently:
@@ -33,7 +33,7 @@ There is no telemetry, no crash reporting and no other network code in the proje
 
 Accepting an update never runs anything unverified. The download is checked against the **SHA-256
 checksum GitHub publishes for that asset** before anything on disk is touched; a mismatched file is
-deleted. A release with no published checksum is not installed at all — the download page opens
+deleted. A release with no published checksum is not installed at all - the download page opens
 instead, and nothing is fetched. The same happens for any copy that is not the published single-file
 exe (a development build, for instance).
 
@@ -46,7 +46,7 @@ copy. If putting the new file in place fails, the original is renamed back.
 
 **Process command lines.** Task Manager shows them, they look like an obvious upgrade for a process
 list, and they routinely contain `--token=`, `--password=` and connection strings. PC Watch takes
-process **names only**, from a `CreateToolhelp32Snapshot` — an API that cannot return a command line
+process **names only**, from a `CreateToolhelp32Snapshot` - an API that cannot return a command line
 even by accident.
 
 It also never reads window titles, environment variables, file contents, or anything on disk beyond
@@ -63,7 +63,7 @@ The report is designed to be pasted into a bug report, so treat everything in it
 - GPU model, wattage, temperature
 - **Process names, PIDs, memory and age**, and the parent chain that launched them
 
-Process names can be revealing in themselves — a project codename in an executable name, or which
+Process names can be revealing in themselves - a project codename in an executable name, or which
 VPN, chat and development tools you run. Read it before you paste it.
 
 It contains no file paths, no username and no machine name, and that is **enforced by the self-test**
@@ -74,10 +74,10 @@ It contains no file paths, no username and no machine name, and that is **enforc
 The only destructive action is the **kill button**. It refuses processes whose termination bugchecks
 Windows (`csrss`, `wininit`, `winlogon`, `services`, `smss`, `lsass`, `svchost`, and others), warns
 before ending anything that takes work with it, and re-checks the process name against the live
-process before killing — pids get recycled, and the row you clicked was rendered up to a second ago.
+process before killing - pids get recycled, and the row you clicked was rendered up to a second ago.
 
-It never elevates or installs a driver. It writes to `%APPDATA%\PcWatch\` (its settings), and — only
-when you accept an update — to `%TEMP%\PcWatch-update\` (the download) and to the folder holding
+It never elevates or installs a driver. It writes to `%APPDATA%\PcWatch\` (its settings), and - only
+when you accept an update - to `%TEMP%\PcWatch-update\` (the download) and to the folder holding
 `PcWatch.exe` (the new exe, and the old one until the next launch removes it). If that folder is not
 writable by you, the update is refused and nothing is changed.
 
@@ -94,7 +94,7 @@ argument or credential, or an expanded environment variable. A fixture would onl
 the test author put in it, and would keep passing no matter what the renderer started including.
 
 `check-no-leaks.ps1` scans the **compiled artefact**, not the source. It was written after the
-published 1.1.0 binary was found to contain the builder's home directory in its debug directory —
+published 1.1.0 binary was found to contain the builder's home directory in its debug directory  - 
 a string the compiler writes by default, which appears nowhere in the repository and which a
 source-only check would have missed entirely. Builds now use `DebugType=embedded`, a `PathMap` onto
 a neutral `/src/` root, and `ContinuousIntegrationBuild` for reproducibility.
